@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ENQUIRY_LEADS } from '../../constants/enquiryConstants';
 
 const EnquiryDetailModal = ({ enquiry, allEnquiries, onClose, onSave }) => {
   const [isEditMode, setIsEditMode] = useState(false);
@@ -8,7 +9,7 @@ const EnquiryDetailModal = ({ enquiry, allEnquiries, onClose, onSave }) => {
     phone: enquiry?.phone || '',
     email: enquiry?.email || '',
     stage: enquiry?.stage || '',
-    source: enquiry?.source || '',
+    lead: enquiry?.lead || enquiry?.source || '',
     careType: enquiry?.careType || '',
   });
 
@@ -56,7 +57,7 @@ const EnquiryDetailModal = ({ enquiry, allEnquiries, onClose, onSave }) => {
       phone: enquiry.phone || '',
       email: enquiry.email || '',
       stage: enquiry.stage || '',
-      source: enquiry.source || '',
+      lead: enquiry.lead || enquiry.source || '',
       careType: enquiry.careType || '',
     });
     setIsEditMode(false);
@@ -178,8 +179,8 @@ const EnquiryDetailModal = ({ enquiry, allEnquiries, onClose, onSave }) => {
   {/* First Stage row inge thevaiyillai, yenil ithu thani row-aaga table-il irukkum */}
 </div>
                 <div>
-                  <p className="text-xs sm:text-sm text-gray-600">Source</p>
-                  <p className="text-sm sm:text-base font-medium text-gray-900">{enquiry.source}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Leads</p>
+                  <p className="text-sm sm:text-base font-medium text-gray-900">{enquiry.lead || enquiry.source}</p>
                 </div>
                 <div>
                   <p className="text-xs sm:text-sm text-gray-600">Care Type</p>
@@ -209,17 +210,47 @@ const EnquiryDetailModal = ({ enquiry, allEnquiries, onClose, onSave }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">Source</label>
+                  <label className="block text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">Leads</label>
                   <select
-                    name="source"
-                    value={formData.source}
+                    name="lead"
+                    value={formData.lead}
                     onChange={handleInputChange}
                     className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="Tawk.to">Tawk.to</option>
-                    <option value="Website">Website</option>
-                    <option value="Telecaller">Telecaller</option>
-                    <option value="Referral">Referral</option>
+                    <optgroup label="Online">
+                      <option value={ENQUIRY_LEADS.WEBSITE}>{ENQUIRY_LEADS.WEBSITE}</option>
+                      <option value={ENQUIRY_LEADS.WHATSAPP}>{ENQUIRY_LEADS.WHATSAPP}</option>
+                      <option value={ENQUIRY_LEADS.FACEBOOK}>{ENQUIRY_LEADS.FACEBOOK}</option>
+                      <option value={ENQUIRY_LEADS.INSTAGRAM}>{ENQUIRY_LEADS.INSTAGRAM}</option>
+                      <option value={ENQUIRY_LEADS.LINKEDIN}>{ENQUIRY_LEADS.LINKEDIN}</option>
+                      <option value={ENQUIRY_LEADS.YELLOW_PAGE}>{ENQUIRY_LEADS.YELLOW_PAGE}</option>
+                      <option value={ENQUIRY_LEADS.MAIL}>{ENQUIRY_LEADS.MAIL}</option>
+                      <option value={ENQUIRY_LEADS.TAWK_TO}>{ENQUIRY_LEADS.TAWK_TO}</option>
+                      <option value={ENQUIRY_LEADS.META_CAMPAIGNS}>{ENQUIRY_LEADS.META_CAMPAIGNS}</option>
+                      <option value={ENQUIRY_LEADS.GOOGLE_CAMPAIGNS}>{ENQUIRY_LEADS.GOOGLE_CAMPAIGNS}</option>
+                    </optgroup>
+                    <optgroup label="Offline - Referral">
+                      <option value={ENQUIRY_LEADS.OLD_CLIENTS}>{ENQUIRY_LEADS.OLD_CLIENTS}</option>
+                      <option value={ENQUIRY_LEADS.EXISTING_CLIENTS}>{ENQUIRY_LEADS.EXISTING_CLIENTS}</option>
+                    </optgroup>
+                    <optgroup label="Offline - Professional">
+                      <option value={ENQUIRY_LEADS.DOCTOR}>{ENQUIRY_LEADS.DOCTOR}</option>
+                      <option value={ENQUIRY_LEADS.MEDICAL}>{ENQUIRY_LEADS.MEDICAL}</option>
+                      <option value={ENQUIRY_LEADS.NURSE}>{ENQUIRY_LEADS.NURSE}</option>
+                    </optgroup>
+                    <optgroup label="Offline - Unprofessional">
+                      <option value={ENQUIRY_LEADS.COMPOUNDER}>{ENQUIRY_LEADS.COMPOUNDER}</option>
+                      <option value={ENQUIRY_LEADS.ELECTRICIAN}>{ENQUIRY_LEADS.ELECTRICIAN}</option>
+                      <option value={ENQUIRY_LEADS.PLUMBER}>{ENQUIRY_LEADS.PLUMBER}</option>
+                    </optgroup>
+                    <optgroup label="Offline - Events & Stalls">
+                      <option value={ENQUIRY_LEADS.CAMP}>{ENQUIRY_LEADS.CAMP}</option>
+                      <option value={ENQUIRY_LEADS.STALL}>{ENQUIRY_LEADS.STALL}</option>
+                      <option value={ENQUIRY_LEADS.EVENT}>{ENQUIRY_LEADS.EVENT}</option>
+                    </optgroup>
+                    <optgroup label="Offline - Business Partners">
+                      <option value={ENQUIRY_LEADS.BUSINESS_PARTNERS}>{ENQUIRY_LEADS.BUSINESS_PARTNERS}</option>
+                    </optgroup>
                   </select>
                 </div>
                 <div>
@@ -253,9 +284,9 @@ const EnquiryDetailModal = ({ enquiry, allEnquiries, onClose, onSave }) => {
                   const colorClass = stageColors[entry.stage] || 'bg-gray-50 text-gray-700 border-gray-200';
                   
                   return (
-                    <div key={entry.id} className={`p-4 sm:p-5 rounded-lg border ${colorClass}`}>
+                    <div key={entry._id || entry.id} className={`p-4 sm:p-5 rounded-lg border ${colorClass}`}>
                       {/* Header with Stage and Badge */}
-                      <div className="flex items-start justify-between mb-3 sm:mb-4">
+                      <div className="flex items-start justify-between">
                         <div>
                           <p className="font-semibold text-sm sm:text-base">
                             Submission #{index + 1}: <span className="font-bold">{entry.stage}</span>
@@ -271,38 +302,6 @@ const EnquiryDetailModal = ({ enquiry, allEnquiries, onClose, onSave }) => {
                             LATEST
                           </span>
                         )}
-                      </div>
-
-                      {/* Details Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-xs font-semibold text-gray-600">Elder Name</p>
-                          <p className="text-sm font-medium">{entry.elderName}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-gray-600">Family Name</p>
-                          <p className="text-sm font-medium">{entry.familyName || '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-gray-600">Phone</p>
-                          <p className="text-sm font-medium">{entry.phone}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-gray-600">Email</p>
-                          <p className="text-sm font-medium">{entry.email || '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-gray-600">Aadhaar</p>
-                          <p className="text-sm font-medium">{entry.aadhaar || '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-gray-600">Source</p>
-                          <p className="text-sm font-medium">{entry.source}</p>
-                        </div>
-                        <div className="sm:col-span-2">
-                          <p className="text-xs font-semibold text-gray-600">Care Type</p>
-                          <p className="text-sm font-medium">{entry.careType || '-'}</p>
-                        </div>
                       </div>
                     </div>
                   );

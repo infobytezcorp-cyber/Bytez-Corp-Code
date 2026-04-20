@@ -1,6 +1,34 @@
 import express from 'express';
+import { Op } from 'sequelize';
 const router = express.Router();
 import Enquiry from '../models/EnquirySQLite.js';
+
+/**
+ * ENQUIRY ROUTES DOCUMENTATION
+ * =============================
+ * 
+ * Valid Lead Values:
+ * ------------------
+ * Online Leads (10):
+ *   - Website, Whatsapp, Facebook, Instagram, LinkedIn, Yellow page, Mail, Tawk.to, Meta Campaigns, Google Campaigns
+ * 
+ * Offline Leads - Referral (2):
+ *   - Old clients, Existing clients
+ * 
+ * Offline Leads - Professional (3):
+ *   - Doctor, Medical, Nurse
+ * 
+ * Offline Leads - Unprofessional (3):
+ *   - Compounder, Electrician, Plumber
+ * 
+ * Offline Leads - Events & Stalls (3):
+ *   - Camp, Stall, Event
+ * 
+ * Offline Leads - Business Partners (1):
+ *   - Business partners
+ * 
+ * Total: 22 lead options across Online and Offline categories
+ */
 
 // Helper: Convert array values to comma-separated strings
 const getStringValue = (value) => {
@@ -10,12 +38,40 @@ const getStringValue = (value) => {
   return value || '';
 };
 
-// 1. GET all enquiries (sorted by createdAt descending)
+// 1. GET all enquiries with date range filtering
 router.get('/', async (req, res) => {
   try {
+    const { fromDate, toDate } = req.query;
+    let whereClause = {};
+
+    // Date range filtering
+    if (fromDate || toDate) {
+      const dateFilter = {};
+      
+      if (fromDate) {
+        const from = new Date(fromDate);
+        from.setHours(0, 0, 0, 0);
+        dateFilter[Op.gte] = from;
+      }
+      
+      if (toDate) {
+        const to = new Date(toDate);
+        to.setHours(23, 59, 59, 999);
+        if (dateFilter[Op.gte]) {
+          dateFilter[Op.and] = Op.lte(to);
+        } else {
+          dateFilter[Op.lte] = to;
+        }
+      }
+      
+      whereClause.createdAt = dateFilter;
+    }
+
     const enquiries = await Enquiry.findAll({
+      where: whereClause,
       order: [['createdAt', 'DESC']],
     });
+    
     res.json(enquiries);
   } catch (err) {
     console.error('❌ Get All Enquiries Error:', err.message);
@@ -23,7 +79,26 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 2. GET single enquiry by ID
+// 2. GET enquiries by client ID (all history)
+router.get('/client/:clientId', async (req, res) => {
+  try {
+    const enquiries = await Enquiry.findAll({
+      where: { clientId: req.params.clientId },
+      order: [['createdAt', 'DESC']],
+    });
+    
+    if (enquiries.length === 0) {
+      return res.status(404).json({ message: 'No enquiries found for this client' });
+    }
+    
+    res.json(enquiries);
+  } catch (err) {
+    console.error('❌ Get Client Enquiries Error:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. GET single enquiry by ID
 router.get('/:id', async (req, res) => {
   try {
     const enquiry = await Enquiry.findByPk(req.params.id);
@@ -37,7 +112,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 3. CREATE new enquiry entry (Google Form integration)
+// 4. CREATE new enquiry entry (Google Form integration)
 // Each submission creates a NEW ROW (multiple rows per client)
 // Same user (phone+aadhaar) reuses the SAME clientId
 router.post('/', async (req, res) => {
@@ -66,7 +141,7 @@ router.post('/', async (req, res) => {
       aadhaar: aadhaar || null,
       email: req.body.email || null,
       careType: getStringValue(req.body.careType),
-      source: getStringValue(req.body.source),
+      lead: getStringValue(req.body.source || req.body.lead),
       stage: stage || 'New Enquiry',
       timeline: [{ 
         event: `Stage Recorded: ${stage || 'New Enquiry'}`, 
@@ -82,7 +157,8 @@ router.post('/', async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 });
-// 4. UPDATE enquiry by ID
+
+// 5. UPDATE enquiry by ID
 router.put('/:id', async (req, res) => {
   try {
     const enquiry = await Enquiry.findByPk(req.params.id);
@@ -99,7 +175,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// 5. DELETE enquiry by ID
+// 6. DELETE enquiry by ID
 router.delete('/:id', async (req, res) => {
   try {
     const enquiry = await Enquiry.findByPk(req.params.id);
@@ -113,6 +189,47 @@ router.delete('/:id', async (req, res) => {
   } catch (err) {
     console.error('❌ Delete Error:', err.message);
     res.status(400).json({ message: err.message });
+  }
+});
+
+// 7. FILTER enquiries by stage, lead, care type, and date
+router.post('/filter', async (req, res) => {
+  try {
+    const { stage, lead, careType, fromDate, toDate } = req.body;
+    let whereClause = {};
+
+    if (stage) whereClause.stage = stage;
+    if (lead) whereClause.lead = lead;
+    if (careType) whereClause.careType = careType;
+
+    // Date range filtering
+    if (fromDate || toDate) {
+      const dateFilter = {};
+      
+      if (fromDate) {
+        const from = new Date(fromDate);
+        from.setHours(0, 0, 0, 0);
+        dateFilter[Op.gte] = from;
+      }
+      
+      if (toDate) {
+        const to = new Date(toDate);
+        to.setHours(23, 59, 59, 999);
+        dateFilter[Op.lte] = to;
+      }
+      
+      whereClause.createdAt = dateFilter;
+    }
+
+    const enquiries = await Enquiry.findAll({
+      where: whereClause,
+      order: [['createdAt', 'DESC']],
+    });
+
+    res.json(enquiries);
+  } catch (err) {
+    console.error('❌ Filter Error:', err.message);
+    res.status(500).json({ message: err.message });
   }
 });
 

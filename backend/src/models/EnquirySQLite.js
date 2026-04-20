@@ -56,10 +56,16 @@ aadhaar: {
     defaultValue: 'New Enquiry',
     allowNull: false,
   },
-  source: {
+  lead: {
     type: DataTypes.STRING(50),
-    defaultValue: 'Website',
-    allowNull: false,
+    defaultValue: '',
+    allowNull: true,
+    // Valid values: Website, Whatsapp, Facebook, Instagram, LinkedIn, Yellow page, Mail, Tawk.to, Meta Campaigns, Google Campaigns
+    // Offline - Referral: Old clients, Existing clients
+    // Offline - Professional: Doctor, Medical, Nurse
+    // Offline - Unprofessional: Compounder, Electrician, Plumber
+    // Offline - Events & Stalls: Camp, Stall, Event
+    // Offline - Business Partners: Business partners
   },
   careType: {
     type: DataTypes.STRING(255),

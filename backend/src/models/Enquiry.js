@@ -89,11 +89,25 @@ const EnquirySchema = new mongoose.Schema({
     enum: ['New Enquiry', 'Contact', 'Pitching', 'Enrolled'], 
     default: 'New Enquiry' 
   },
-    source: { 
+  lead: { 
     type: String, 
-    enum: ['Website', 'Telecaller', 'Tawk.to', 'Referral', 'Google Form'], // ✅ 'Google Form' add pannunga
+    enum: [
+      // Online leads
+      'Website', 'Whatsapp', 'Facebook', 'Instagram', 'LinkedIn', 'Yellow page', 'Mail',
+      'Tawk.to', 'Meta Campaigns', 'Google Campaigns',
+      // Offline - Referral
+      'Old clients', 'Existing clients',
+      // Offline - Professional
+      'Doctor', 'Medical', 'Nurse',
+      // Offline - Unprofessional
+      'Compounder', 'Electrician', 'Plumber',
+      // Offline - Events & Stalls
+      'Camp', 'Stall', 'Event',
+      // Offline - Business Partners
+      'Business partners'
+    ],
     default: 'Website' 
-    },
+  },
   careType: { 
     type: String,
     default: ''

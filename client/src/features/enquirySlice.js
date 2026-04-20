@@ -2,12 +2,13 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
 // Use ngrok URL or environment variable for API
-const API_URL = import.meta.env.VITE_API_URL || 'https://b50e-2406-7400-ff03-a2b9-f15f-9331-f525-ce36.ngrok-free.app';
+const API_URL = import.meta.env.VITE_API_URL || 'https://835a-2406-7400-ff03-c034-88a-740-6b89-fc69.ngrok-free.app';
 
 // Mock data for development
 const mockEnquiryData = [
   {
     _id: '507f1f77bcf86cd799439011',
+    clientId: 'CLI001',
     elderName: 'Ramesh Kumar',
     familyName: 'Kumar Family',
     phone: '9876543210',
@@ -15,95 +16,111 @@ const mockEnquiryData = [
     careType: 'Day Care',
     stage: 'New Enquiry',
     source: 'Website',
+    aadhaar: '1234567890123456',
     createdAt: new Date('2024-10-04').toISOString(),
     timeline: []
   },
   {
     _id: '507f1f77bcf86cd799439012',
+    clientId: 'CLI002',
     elderName: 'Priya Sharma',
     familyName: 'Sharma Family',
     phone: '9765432109',
     email: 'priya@email.com',
     careType: 'Residential',
     stage: 'Contact',
-    source: 'Telecaller',
+    source: 'Referral cold clients',
+    aadhaar: '1234567890123457',
     createdAt: new Date('2024-07-04').toISOString(),
     timeline: []
   },
   {
     _id: '507f1f77bcf86cd799439013',
+    clientId: 'CLI003',
     elderName: 'Rajesh Singh',
     familyName: 'Singh Family',
     phone: '9654321098',
     email: 'rajesh@email.com',
     careType: 'Live In',
     stage: 'Pitching',
-    source: 'Referral',
+    source: 'Existing clients',
+    aadhaar: '1234567890123458',
     createdAt: new Date('2024-09-15').toISOString(),
     timeline: []
   },
   {
     _id: '507f1f77bcf86cd799439014',
+    clientId: 'CLI004',
     elderName: 'Anjali Patel',
     familyName: 'Patel Family',
     phone: '9543210987',
     email: 'anjali@email.com',
     careType: 'Full Time',
     stage: 'Pitching',
-    source: 'Tawk.to',
+    source: 'Whatsapp',
+    aadhaar: '1234567890123459',
     createdAt: new Date('2024-06-10').toISOString(),
     timeline: []
   },
   {
     _id: '507f1f77bcf86cd799439015',
+    clientId: 'CLI005',
     elderName: 'Vikram Rao',
     familyName: 'Rao Family',
     phone: '9432109876',
     email: 'vikram@email.com',
     careType: 'Part Time',
     stage: 'Enrolled',
-    source: 'Website',
+    source: 'Facebook',
+    aadhaar: '1234567890123460',
     createdAt: new Date('2024-08-20').toISOString(),
     timeline: []
   },
   {
     _id: '507f1f77bcf86cd799439016',
+    clientId: 'CLI006',
     elderName: 'Pooja Malhotra',
     familyName: 'Malhotra Family',
     phone: '9321098765',
     email: 'pooja@email.com',
     careType: 'Day Care',
     stage: 'New Enquiry',
-    source: 'Website',
+    source: 'LinkedIn',
+    aadhaar: '1234567890123461',
     createdAt: new Date('2024-09-01').toISOString(),
     timeline: []
   },
   {
     _id: '507f1f77bcf86cd799439017',
+    clientId: 'CLI007',
     elderName: 'Arvind Gupta',
     familyName: 'Gupta Family',
     phone: '9210987654',
     email: 'arvind@email.com',
     careType: 'Live In',
     stage: 'Contact',
-    source: 'Telecaller',
+    source: 'Business partners',
+    aadhaar: '1234567890123462',
     createdAt: new Date('2024-05-12').toISOString(),
     timeline: []
   },
   {
     _id: '507f1f77bcf86cd799439018',
+    clientId: 'CLI008',
     elderName: 'Meera Nair',
     familyName: 'Nair Family',
     phone: '9109876543',
     email: 'meera@email.com',
     careType: 'Residential',
     stage: 'Pitching',
-    source: 'Referral',
+    source: 'Doctors',
+    aadhaar: '1234567890123463',
     createdAt: new Date('2024-08-25').toISOString(),
     timeline: []
   },
   {
     _id: '507f1f77bcf86cd799439019',
+    clientId: 'CLI009',
     elderName: 'Suresh Iyer',
     familyName: 'Iyer Family',
     phone: '9098765432',
@@ -111,19 +128,50 @@ const mockEnquiryData = [
     careType: 'Full Time',
     stage: 'Enrolled',
     source: 'Website',
+    aadhaar: '1234567890123464',
     createdAt: new Date('2024-07-30').toISOString(),
     timeline: []
   },
   {
     _id: '507f1f77bcf86cd79943901a',
+    clientId: 'CLI010',
     elderName: 'Divya Kumari',
     familyName: 'Kumari Family',
     phone: '8987654321',
     email: 'divya@email.com',
     careType: 'Part Time',
     stage: 'New Enquiry',
-    source: 'Referral',
+    source: 'Instagram',
+    aadhaar: '1234567890123465',
     createdAt: new Date('2024-09-18').toISOString(),
+    timeline: []
+  },
+  {
+    _id: '507f1f77bcf86cd799439023',
+    clientId: 'CLI011',
+    elderName: 'Karthik Nair',
+    familyName: 'Nair Family',
+    phone: '8876543210',
+    email: 'karthik@email.com',
+    careType: 'Residential',
+    stage: 'New Enquiry',
+    source: 'Yellow page',
+    aadhaar: '1234567890123466',
+    createdAt: new Date('2024-09-05').toISOString(),
+    timeline: []
+  },
+  {
+    _id: '507f1f77bcf86cd799439024',
+    clientId: 'CLI012',
+    elderName: 'Sunita Roy',
+    familyName: 'Roy Family',
+    phone: '8765432109',
+    email: 'sunita@email.com',
+    careType: 'Day Care',
+    stage: 'Contact',
+    source: 'Mail',
+    aadhaar: '1234567890123467',
+    createdAt: new Date('2024-08-15').toISOString(),
     timeline: []
   }
 ];
@@ -227,8 +275,11 @@ const initialState = {
   error: null,
   filters: {
     stage: null,
-    source: null,
-    searchTerm: ''
+    lead: null,
+    careType: null,
+    searchTerm: '',
+    fromDate: null,
+    toDate: null
   },
   pagination: {
     page: 1,
