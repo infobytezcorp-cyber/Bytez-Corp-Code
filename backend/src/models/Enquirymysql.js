@@ -1,5 +1,6 @@
 import { DataTypes } from 'sequelize';
-import { sequelize } from '../config/sqliteDb.js';
+// import { sequelize } from '../config/sqliteDb.js';
+import { sequelize } from '../config/mysqlDb.js';
 
 // Enquiry Model for SQLite using Sequelize
 const Enquiry = sequelize.define('Enquiry', {

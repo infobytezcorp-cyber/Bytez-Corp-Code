@@ -30,6 +30,7 @@ function App() {
           <Route path="/visitor" element={<VisitorRegistration />} />
           <Route path="/success" element={<SuccessPage />} />
           <Route path="/jobform" element={<JobRegistorForm />} />
+          
           <Route
             path="/enquiry"
             element={

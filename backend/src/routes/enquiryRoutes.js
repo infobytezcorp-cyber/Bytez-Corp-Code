@@ -1,7 +1,7 @@
 import express from 'express';
 import { Op } from 'sequelize';
 const router = express.Router();
-import Enquiry from '../models/EnquirySQLite.js';
+import Enquiry from '../models/Enquirymysql.js';
 
 // Helper: Convert array values to comma-separated strings
 const getStringValue = (value) => {

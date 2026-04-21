@@ -4,8 +4,17 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 
-import connectDB from "./src/config/db.js";
-import { connectSQLiteDB } from "./src/config/sqliteDb.js";
+// import connectDB from "./src/config/db.js";
+// import { connectSQLiteDB } from "./src/config/sqliteDb.js";
+import { connectDB, sequelize } from './src/config/mysqlDb.js';
+
+//mysql db
+import User from "./src/models/User.js";
+import Otp from "./src/models/Otp.js";
+import VisitDetails from "./src/models/VisitDetails.js";
+import Enquiry from "./src/models/Enquirymysql.js";
+import Visitor from "./src/models/VisitorModule.js";
+
 import authRoutes from "./src/routes/authRoutes.js";
 import protectedRoutes from "./src/routes/protectedRoutes.js";
 import otpRoutes from "./src/routes/otpRoutes.js";
@@ -39,27 +48,26 @@ app.use("/api/enquiries", enquiryRoutes);
 // --- Server Start Logic ---
 const startServer = async () => {
   try {
-    // 1. Try MongoDB connection (optional - not required for enquiry)
-    try {
-      await connectDB();
-      console.log("✅ MongoDB connected successfully");
-    } catch (mongoError) {
-      console.warn("⚠️  MongoDB connection failed (optional):", mongoError.message);
-      console.log("📌 Using SQLite for enquiry - MongoDB not required");
-    }
+    // 1. MySQL Connection & Table Sync
+    console.log("⏳ Connecting to MySQL...");
+    await connectDB(); // Database connection logic
 
-    // 2. SQLite connect aagura varai wait pannuvom (for enquiry) - REQUIRED
-    await connectSQLiteDB();
-    console.log("✅ SQLite connected successfully");
+    // 2. Automatical-aa tables create panna indha line mukkiyam
+    // alter: true - Neenga model-la change panna MySQL table automatic-aa update aagum
+    await sequelize.sync({ alter: true });
+    console.log("✅ All MySQL Tables synced and created successfully!");
 
-    // 3. DB connect aana aprama dhaan server-ai listen panna vekkanum
+    // 3. Port Configuration
     const port = process.env.PORT || 8000;
     app.listen(port, "0.0.0.0", () => {
       console.log(`🚀 Server running on port ${port}`);
+      console.log(`📡 Local Access: http://localhost:${port}`);
     });
+
   } catch (error) {
+    // Endha error vandhalum inga catch aagum
     console.error("❌ Failed to start the server:", error.message);
-    process.exit(1); // Connection fail aana server-ai stop pannidum
+    process.exit(1); 
   }
 };
 
