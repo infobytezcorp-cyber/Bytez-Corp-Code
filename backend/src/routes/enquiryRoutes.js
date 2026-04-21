@@ -3,33 +3,6 @@ import { Op } from 'sequelize';
 const router = express.Router();
 import Enquiry from '../models/EnquirySQLite.js';
 
-/**
- * ENQUIRY ROUTES DOCUMENTATION
- * =============================
- * 
- * Valid Lead Values:
- * ------------------
- * Online Leads (10):
- *   - Website, Whatsapp, Facebook, Instagram, LinkedIn, Yellow page, Mail, Tawk.to, Meta Campaigns, Google Campaigns
- * 
- * Offline Leads - Referral (2):
- *   - Old clients, Existing clients
- * 
- * Offline Leads - Professional (3):
- *   - Doctor, Medical, Nurse
- * 
- * Offline Leads - Unprofessional (3):
- *   - Compounder, Electrician, Plumber
- * 
- * Offline Leads - Events & Stalls (3):
- *   - Camp, Stall, Event
- * 
- * Offline Leads - Business Partners (1):
- *   - Business partners
- * 
- * Total: 22 lead options across Online and Offline categories
- */
-
 // Helper: Convert array values to comma-separated strings
 const getStringValue = (value) => {
   if (Array.isArray(value)) {
@@ -112,9 +85,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 4. CREATE new enquiry entry (Google Form integration)
-// Each submission creates a NEW ROW (multiple rows per client)
-// Same user (phone+aadhaar) reuses the SAME clientId
+// 4. CREATE new enquiry
 router.post('/', async (req, res) => {
   try {
     let clientId = null;
@@ -182,7 +153,6 @@ router.delete('/:id', async (req, res) => {
     if (!enquiry) {
       return res.status(404).json({ message: 'Enquiry not found' });
     }
-
     await enquiry.destroy();
     console.log('✅ Enquiry Deleted. ID:', req.params.id);
     res.json({ message: 'Enquiry deleted successfully' });

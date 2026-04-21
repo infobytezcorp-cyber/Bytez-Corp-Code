@@ -11,8 +11,8 @@ import SettingsPage from "./pages/SettingPage";
 import VisitorRegistration from "./components/dashboards/visitors/VisitorRegistration";
 import SuccessPage from "./components/dashboards/visitors/SuccessPage";
 import JobRegistorForm from "./components/dashboards/visitors/JobRegistorForm";
-// import VisitorRegistration from "./components/dashboards/VisitorRegistration";
 import Enquiry from "./pages/Enquiry";
+import CallCenter from "./pages/CallCenter";
 
 
 function App() {
@@ -39,10 +39,10 @@ function App() {
             }
           />
           <Route
-            path="/enquiry"
+            path="/callcenter"
             element={
               <ProtectedRoute role="admin">
-                <Enquiry />
+                <CallCenter />
               </ProtectedRoute>
             }
           />
