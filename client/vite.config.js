@@ -4,6 +4,14 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+  host: "0.0.0.0",
+  port: 5173,
+  strictPort: true,
+  allowedHosts: [
+    "scrambled-grooving-unit.ngrok-free.dev"
+  ]
+},
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
@@ -18,4 +26,5 @@ export default defineConfig({
       }
     }
   }
+  
 })

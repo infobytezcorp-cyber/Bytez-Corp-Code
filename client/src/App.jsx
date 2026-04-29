@@ -13,6 +13,12 @@ import SuccessPage from "./components/dashboards/visitors/SuccessPage";
 import JobRegistorForm from "./components/dashboards/visitors/JobRegistorForm";
 import Enquiry from "./pages/Enquiry";
 import CallCenter from "./pages/CallCenter";
+import StaffPage from "./pages/StaffPage";
+import TaskManagement from "./pages/TaskManagement";
+// import VisitorRegistration from "./components/dashboards/VisitorRegistration";
+// import Enquiry from "./pages/Enquiry";
+import ModulesPage from "./pages/ModulesPage";
+import VisitorPage from "./pages/VisitorPage";
 
 
 function App() {
@@ -25,12 +31,12 @@ function App() {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/visitorpage" element={<VisitorPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/visitor" element={<VisitorRegistration />} />
           <Route path="/success" element={<SuccessPage />} />
           <Route path="/jobform" element={<JobRegistorForm />} />
-          
           <Route
             path="/enquiry"
             element={
@@ -44,6 +50,22 @@ function App() {
             element={
               <ProtectedRoute role="admin">
                 <CallCenter />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff"
+            element={
+              <ProtectedRoute role="admin">
+                <StaffPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tasks"
+            element={
+              <ProtectedRoute role="admin">
+                <TaskManagement />
               </ProtectedRoute>
             }
           />

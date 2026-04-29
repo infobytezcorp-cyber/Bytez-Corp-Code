@@ -19,7 +19,7 @@ router.post("/send-otp", async (req, res) => {
   });
 
   try {
-    // ✅ CREATE CLIENT HERE (NOT TOP)
+    // CREATE CLIENT HERE (NOT TOP)
     const client = twilio(
       process.env.TWILIO_SID,
       process.env.TWILIO_AUTH
@@ -65,7 +65,7 @@ router.post("/send-otp", async (req, res) => {
 // });
 
 router.post("/verify-otp", async (req, res) => {
-  const { phone, otp } = req.body;
+  const { name, phone, otp } = req.body;
 
   const record = await Otp.findOne({ phone, otp });
 
@@ -83,15 +83,15 @@ router.post("/verify-otp", async (req, res) => {
     });
   }
 
-  // 🔥 CREATE VISITOR HERE
+  // CREATE VISITOR HERE
   const visitor = await Visitor.create({
-    name: name || "Guest",
+    name,
     phone,
     checkInTime: new Date(),
     status: "Checked-In",
   });
 
-  // 🔥 RETURN VISITOR ID
+  // RETURN VISITOR ID
   res.json({
     success: true,
     _id: visitor._id,

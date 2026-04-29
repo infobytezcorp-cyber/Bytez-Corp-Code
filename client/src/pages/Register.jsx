@@ -32,7 +32,7 @@ export default function Register({ onClose }) {
   };
 
   return (
-    <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+    <div className="w-full bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">

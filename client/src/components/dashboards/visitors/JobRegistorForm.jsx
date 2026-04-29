@@ -15,8 +15,10 @@ import {
   Hash,
   Droplets,
 } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL;
+axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
 
 
 const visitTypes = [
@@ -25,37 +27,89 @@ const visitTypes = [
 ];
 
 const PURPOSES = [
-  "Consultation",
-  "Follow-up",
-  "Lab test",
-  "Pharmacy",
-  "Surgery prep",
-  "Emergency",
+  "Job",
+  "Visiting",
+  "Enquiry",
   "Other",
 ];
+
+const JOB_ROLES = [
+  "Web Developer",
+  "UI/UX Designer",
+  "HR",
+  "Nurse",
+  "Doctor",
+  "Elder Care",
+  "Home Care",
+  "Legal Service",
+  "Doctor Visit",
+  "Staff",
+  "Enquiry",
+  "Donor",
+  "Volunteers",
+  "Professionals",
+  "Business Partners",
+  "Vendors",
+  "Doctors (Professional)",
+  "Other"
+];
+
+
 
 export default function VisitorRegistrationForm() {
   const [form, setForm] = useState({
     name: '',
     phone: '',
     email: '',
-    author: '',
+    aadhaarnumber: '',
     bloodGroup: '',
     visitType: '',
     purpose: '',
+    purposeCustom: "",
     jobRole: '',
+    jobRoleCustom: "",
     experience: '',
     address: '',
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+    const navigate = useNavigate();
+
+  // const handleChange = (e) => {
+  //   const { name, value } = e.target;
+  //   setForm(prev => ({ ...prev, [name]: value }));
+  //   if (errors[name]) {
+  //     setErrors(prev => ({ ...prev, [name]: '' }));
+  //   }
+  // };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+
+    let updatedValue = value;
+
+    // Aadhaar → only numbers allow
+    if (name === "aadhaarnumber") {
+      updatedValue = value.replace(/\D/g, ""); // remove non-digits
+    }
+
+    //Phone → only numbers
+    if (name === "phone") {
+      updatedValue = value.replace(/\D/g, "");
+    }
+
+    setForm(prev => ({
+      ...prev,
+      [name]: updatedValue
+    }));
+
+    // remove error when typing
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
     }
   };
 
@@ -66,14 +120,74 @@ export default function VisitorRegistrationForm() {
     }
   };
 
+  // const validate = () => {
+  //   const newErrors = {};
+  //   if (!form.name.trim()) newErrors.name = 'Name is required';
+  //   if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
+  //   else if (!/^\d{10}$/.test(form.phone.replace(/\s/g, ''))) newErrors.phone = 'Enter a valid 10-digit number';
+  //   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Enter a valid email address';
+  //   if (!form.visitType) newErrors.visitType = 'Please select a visit type';
+  //   if (form.visitType === 'job' && !form.jobRole.trim()) newErrors.jobRole = 'Job role is required';
+  //   if (form.purpose === "Other" && !form.purposeCustom.trim()) {
+  //     newErrors.purposeCustom = "Enter purpose";
+  //   }
+  //   setErrors(newErrors);
+  //   return Object.keys(newErrors).length === 0;
+  // };
+
   const validate = () => {
     const newErrors = {};
-    if (!form.name.trim()) newErrors.name = 'Name is required';
-    if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
-    else if (!/^\d{10}$/.test(form.phone.replace(/\s/g, ''))) newErrors.phone = 'Enter a valid 10-digit number';
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Enter a valid email address';
-    if (!form.visitType) newErrors.visitType = 'Please select a visit type';
-    if (form.visitType === 'job' && !form.jobRole.trim()) newErrors.jobRole = 'Job role is required';
+
+    // Name
+    if (!form.name.trim()) {
+      newErrors.name = "Name is required";
+    }
+
+    // Phone
+    if (!form.phone.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else if (!/^\d{10}$/.test(form.phone.replace(/\s/g, ""))) {
+      newErrors.phone = "Enter valid 10 digit number";
+    }
+
+    // Email
+    if (!form.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      newErrors.email = "Enter valid email";
+    }
+
+    // Aadhaar
+    if (!form.aadhaarnumber.trim()) {
+      newErrors.aadhaarnumber = "Aadhaar is required";
+    } else if (!/^\d{12}$/.test(form.aadhaarnumber)) {
+      newErrors.aadhaarnumber = "Enter valid 12-digit Aadhaar";
+    }
+
+    // Blood Group
+    if (!form.bloodGroup) {
+      newErrors.bloodGroup = "Select blood group";
+    }
+
+    // Visit Type
+    if (!form.visitType) {
+      newErrors.visitType = "Select visit type";
+    }
+
+    // Job Role
+    if (form.visitType === "job" && !form.jobRole.trim()) {
+      newErrors.jobRole = "Job role is required";
+    }
+
+    // Purpose
+    if (!form.purpose) {
+      newErrors.purpose = "Purpose is required";
+    }
+
+    if (form.purpose === "Other" && !form.purposeCustom.trim()) {
+      newErrors.purposeCustom = "Enter purpose";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -96,11 +210,17 @@ export default function VisitorRegistrationForm() {
         name: form.name,
         phone: form.phone,
         email: form.email,
-        authorNumber: form.authorNumber,
+        aadhaarnumber: form.aadhaarnumber,
         bloodGroup: form.bloodGroup,
-        purpose: form.purpose,
+        purpose:
+          form.purpose === "Other"
+            ? form.purposeCustom
+            : form.purpose,
         visitPerson: form.visitPerson,
-        jobRole: form.jobRole,
+        jobRole:
+          form.jobRole === "Other"
+            ? form.jobRoleCustom
+            : form.jobRole,
         experience: form.experience,
         address: form.address
       };
@@ -117,6 +237,9 @@ export default function VisitorRegistrationForm() {
 
       setSubmitted(true);
 
+      // redirrect 
+      navigate("/visitor");
+
     } catch (err) {
       console.error("Error:", err.response?.data || err.message);
       alert("Something went wrong ❌");
@@ -130,7 +253,7 @@ export default function VisitorRegistrationForm() {
       name: '',
       phone: '',
       email: '',
-      author: '',
+      aadhaarnumber: '',
       bloodGroup: '',
       visitType: '',
       purpose: '',
@@ -193,17 +316,19 @@ export default function VisitorRegistrationForm() {
                 value={form.email}
                 onChange={handleChange}
                 placeholder="you@example.com"
+                required
                 error={errors.email}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <InputField
                   icon={Hash}
-                  label="Author Number"
-                  name="author"
-                  value={form.author}
+                  label="Aadhaar Number"
+                  name="aadhaarnumber"
+                  value={form.aadhaarnumber}
                   onChange={handleChange}
-                  placeholder="e.g. 0x1234...abcd"
-                  error={errors.author}
+                  placeholder="e.g. 0x123XXXXX"
+                  required
+                  error={errors.aadhaarnumber}
                 />
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Blood Group</label>
@@ -213,6 +338,7 @@ export default function VisitorRegistrationForm() {
                       name="bloodGroup"
                       value={form.bloodGroup}
                       onChange={handleChange}
+                      required
                       className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
                     >
                       <option value="">Select blood group</option>
@@ -220,6 +346,11 @@ export default function VisitorRegistrationForm() {
                         <option key={bg} value={bg}>{bg}</option>
                       ))}
                     </select>
+                    {errors.bloodGroup && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.bloodGroup}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -255,21 +386,43 @@ export default function VisitorRegistrationForm() {
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Purpose <span className="text-red-500">*</span>
                   </label>
+
                   <div className="relative">
-                    <FileText size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <FileText size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+
                     <select
                       name="purpose"
-                      className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
                       value={form.purpose}
                       onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 border rounded-xl"
                     >
                       <option value="">Select purpose</option>
                       {PURPOSES.map((p) => (
-                        <option key={p}>{p}</option>
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
                       ))}
+
                     </select>
+                    {errors.purpose && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.purpose}
+                      </p>
+                    )}
                   </div>
-                </div>
+
+                  {/* 🔥 SHOW INPUT IF OTHER */}
+                  {form.purpose === "Other" && (
+                    <InputField
+                      icon={FileText}
+                      label="Enter Purpose"
+                      name="purposeCustom"
+                      value={form.purposeCustom || ""}
+                      onChange={handleChange}
+                      placeholder="Enter purpose"
+                    />
+                  )}
+                </div>  
               )}
             </Section>
 
@@ -277,16 +430,40 @@ export default function VisitorRegistrationForm() {
             {form.visitType === 'job' && (
               <Section title="Job Enquiry Details" highlight>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <InputField
-                    icon={Briefcase}
-                    label="Job Role"
-                    name="jobRole"
-                    value={form.jobRole}
-                    onChange={handleChange}
-                    placeholder="e.g. Software Engineer"
-                    required
-                    error={errors.jobRole}
-                  />
+
+                  {/* 🔥 JOB ROLE DROPDOWN */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Job Role <span className="text-red-500">*</span>
+                    </label>
+
+                    <div className="relative">
+                      <Briefcase
+                        size={16}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                      />
+
+                      <select
+                        name="jobRole"
+                        value={form.jobRole}
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm"
+                      >
+                        <option value="">Select Job Role</option>
+                        {JOB_ROLES.map((item, index) => (
+                          <option key={index} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {errors.jobRole && (
+                      <p className="text-red-500 text-sm">{errors.jobRole}</p>
+                    )}
+                  </div>
+
+                  {/* 🔥 EXPERIENCE */}
                   <InputField
                     icon={Clock}
                     label="Experience (years)"
@@ -297,18 +474,35 @@ export default function VisitorRegistrationForm() {
                   />
                 </div>
 
-                {/* Purpose — only for Job type */}
+                {/* 🔥 SHOW INPUT IF OTHER */}
+                {form.jobRole === "Other" && (
+                  <InputField
+                    icon={Briefcase}
+                    label="Enter Job Role"
+                    name="jobRoleCustom"
+                    value={form.jobRoleCustom || ""}
+                    onChange={handleChange}
+                    placeholder="Enter your role"
+                  />
+                )}
+
+                {/* PURPOSE */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Purpose <span className="text-red-500">*</span>
                   </label>
+
                   <div className="relative">
-                    <FileText size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <FileText
+                      size={16}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+
                     <select
                       name="purpose"
-                      className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
                       value={form.purpose}
                       onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm"
                     >
                       <option value="">Select purpose</option>
                       {PURPOSES.map((p) => (
@@ -317,6 +511,16 @@ export default function VisitorRegistrationForm() {
                     </select>
                   </div>
                 </div>
+                {form.purpose === "Other" && (
+                  <InputField
+                    icon={FileText}
+                    label="Enter Purpose"
+                    name="purposeCustom"
+                    value={form.purposeCustom || ""}
+                    onChange={handleChange}
+                    placeholder="Enter purpose"
+                  />
+                )}
               </Section>
             )}
 
@@ -385,8 +589,17 @@ function InputField({ icon: Icon, label, name, value, onChange, placeholder, typ
       <label className="block text-sm font-medium text-slate-700 mb-1.5">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
+
       <div className="relative">
-        <Icon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+
+        {/* 🔥 FIX HERE */}
+        {Icon && (
+          <Icon
+            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          />
+        )}
+
         <input
           type={type}
           name={name}
@@ -398,7 +611,12 @@ function InputField({ icon: Icon, label, name, value, onChange, placeholder, typ
           `}
         />
       </div>
-      {error && <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">{error}</p>}
+
+      {error && (
+        <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -463,23 +681,56 @@ function SidePanel({ visitType }) {
 }
 
 function SuccessScreen({ form, onReset }) {
-  const visitLabel = visitTypes.find(v => v.value === form.visitType)?.label || form.visitType;
+  const visitLabel =
+    visitTypes.find(v => v.value === form.visitType)?.label || form.visitType;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center">
+
         <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckCircle size={40} className="text-emerald-500" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-800 mb-2">You're Checked In!</h2>
-        <p className="text-slate-500 mb-6 text-sm">Your registration has been submitted successfully.</p>
+
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">
+          You're Checked In!
+        </h2>
+
+        <p className="text-slate-500 mb-6 text-sm">
+          Your registration has been submitted successfully.
+        </p>
 
         <div className="bg-slate-50 rounded-2xl p-5 text-left space-y-3 mb-6">
           <Detail label="Name" value={form.name} />
           <Detail label="Phone" value={form.phone} />
+
           {form.email && <Detail label="Email" value={form.email} />}
+
           <Detail label="Visit Type" value={visitLabel} />
-          {form.purpose && <Detail label="Purpose" value={form.purpose} />}
-          {form.visitType === 'job' && form.jobRole && <Detail label="Job Role" value={form.jobRole} />}
+
+          {/* 🔥 FIXED PURPOSE */}
+          {form.purpose && (
+            <Detail
+              label="Purpose"
+              value={
+                form.purpose === "Other"
+                  ? form.purposeCustom
+                  : form.purpose
+              }
+            />
+          )}
+
+          {/* 🔥 OPTIONAL FIX FOR JOB ROLE ALSO */}
+          {form.visitType === 'job' && form.jobRole && (
+            <Detail
+              label="Job Role"
+              value={
+                form.jobRole === "Other"
+                  ? form.jobRoleCustom
+                  : form.jobRole
+              }
+            />
+          )}
         </div>
 
         <button
@@ -492,7 +743,6 @@ function SuccessScreen({ form, onReset }) {
     </div>
   );
 }
-
 function Detail({ label, value }) {
   return (
     <div className="flex justify-between text-sm">

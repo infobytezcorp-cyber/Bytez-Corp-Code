@@ -1,7 +1,214 @@
+// import express from 'express';
+// import { Op } from 'sequelize';
+// const router = express.Router();
+// import Enquiry from '../models/Enquiry.js';
+
+// // Helper: Convert array values to comma-separated strings
+// const getStringValue = (value) => {
+//   if (Array.isArray(value)) {
+//     return value.join(', ');
+//   }
+//   return value || '';
+// };
+
+// // 1. GET all enquiries with date range filtering
+// router.get('/', async (req, res) => {
+//   try {
+//     const { fromDate, toDate } = req.query;
+//     let whereClause = {};
+
+//     // Date range filtering
+//     if (fromDate || toDate) {
+//       const dateFilter = {};
+      
+//       if (fromDate) {
+//         const from = new Date(fromDate);
+//         from.setHours(0, 0, 0, 0);
+//         dateFilter[Op.gte] = from;
+//       }
+      
+//       if (toDate) {
+//         const to = new Date(toDate);
+//         to.setHours(23, 59, 59, 999);
+//         if (dateFilter[Op.gte]) {
+//           dateFilter[Op.and] = Op.lte(to);
+//         } else {
+//           dateFilter[Op.lte] = to;
+//         }
+//       }
+      
+//       whereClause.createdAt = dateFilter;
+//     }
+
+//     const enquiries = await Enquiry.findAll({
+//       where: whereClause,
+//       order: [['createdAt', 'DESC']],
+//     });
+    
+//     res.json(enquiries);
+//   } catch (err) {
+//     console.error('❌ Get All Enquiries Error:', err.message);
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
+// // 2. GET enquiries by client ID (all history)
+// router.get('/client/:clientId', async (req, res) => {
+//   try {
+//     const enquiries = await Enquiry.findAll({
+//       where: { clientId: req.params.clientId },
+//       order: [['createdAt', 'DESC']],
+//     });
+    
+//     if (enquiries.length === 0) {
+//       return res.status(404).json({ message: 'No enquiries found for this client' });
+//     }
+    
+//     res.json(enquiries);
+//   } catch (err) {
+//     console.error('❌ Get Client Enquiries Error:', err.message);
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
+// // 3. GET single enquiry by ID
+// router.get('/:id', async (req, res) => {
+//   try {
+//     const enquiry = await Enquiry.findByPk(req.params.id);
+//     if (!enquiry) {
+//       return res.status(404).json({ message: 'Enquiry not found' });
+//     }
+//     res.json(enquiry);
+//   } catch (err) {
+//     console.error('❌ Get Enquiry Error:', err.message);
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
+// // 4. CREATE new enquiry
+// router.post('/', async (req, res) => {
+//   try {
+//     let clientId = null;
+//     const { phone, aadhaar, elderName, stage } = req.body;
+
+//     // 1. Look for existing client to link rows
+//     if (phone && aadhaar) {
+//       const existingClient = await Enquiry.findOne({
+//         where: { phone, aadhaar },
+//         order: [['createdAt', 'DESC']]
+//       });
+
+//       if (existingClient) {
+//         clientId = existingClient.clientId;
+//       }
+//     }
+
+//     // 2. Always create a NEW row for every submission
+//     const newEntry = await Enquiry.create({
+//       clientId: clientId, // Hook handles generation if this is null
+//       elderName: elderName,
+//       familyName: req.body.familyName || null,
+//       phone: phone,
+//       aadhaar: aadhaar || null,
+//       email: req.body.email || null,
+//       careType: getStringValue(req.body.careType),
+//       lead: getStringValue(req.body.source || req.body.lead),
+//       stage: stage || 'New Enquiry',
+//       timeline: [{ 
+//         event: `Stage Recorded: ${stage || 'New Enquiry'}`, 
+//         date: new Date().toISOString() 
+//       }],
+//     });
+
+//     console.log(`✅ New Row Created | Client: ${newEntry.clientId} | Stage: ${newEntry.stage}`);
+//     res.status(201).json(newEntry);
+
+//   } catch (err) {
+//     console.error('❌ Error:', err.message);
+//     res.status(400).json({ message: err.message });
+//   }
+// });
+
+// // 5. UPDATE enquiry by ID
+// router.put('/:id', async (req, res) => {
+//   try {
+//     const enquiry = await Enquiry.findByPk(req.params.id);
+//     if (!enquiry) {
+//       return res.status(404).json({ message: 'Enquiry not found' });
+//     }
+
+//     await enquiry.update(req.body);
+//     console.log('✅ Enquiry Updated. ID:', enquiry.id);
+//     res.json(enquiry);
+//   } catch (err) {
+//     console.error('❌ Update Error:', err.message);
+//     res.status(400).json({ message: err.message });
+//   }
+// });
+
+// // 6. DELETE enquiry by ID
+// router.delete('/:id', async (req, res) => {
+//   try {
+//     const enquiry = await Enquiry.findByPk(req.params.id);
+//     if (!enquiry) {
+//       return res.status(404).json({ message: 'Enquiry not found' });
+//     }
+//     await enquiry.destroy();
+//     console.log('✅ Enquiry Deleted. ID:', req.params.id);
+//     res.json({ message: 'Enquiry deleted successfully' });
+//   } catch (err) {
+//     console.error('❌ Delete Error:', err.message);
+//     res.status(400).json({ message: err.message });
+//   }
+// });
+
+// // 7. FILTER enquiries by stage, lead, care type, and date
+// router.post('/filter', async (req, res) => {
+//   try {
+//     const { stage, lead, careType, fromDate, toDate } = req.body;
+//     let whereClause = {};
+
+//     if (stage) whereClause.stage = stage;
+//     if (lead) whereClause.lead = lead;
+//     if (careType) whereClause.careType = careType;
+
+//     // Date range filtering
+//     if (fromDate || toDate) {
+//       const dateFilter = {};
+      
+//       if (fromDate) {
+//         const from = new Date(fromDate);
+//         from.setHours(0, 0, 0, 0);
+//         dateFilter[Op.gte] = from;
+//       }
+      
+//       if (toDate) {
+//         const to = new Date(toDate);
+//         to.setHours(23, 59, 59, 999);
+//         dateFilter[Op.lte] = to;
+//       }
+      
+//       whereClause.createdAt = dateFilter;
+//     }
+
+//     const enquiries = await Enquiry.findAll({
+//       where: whereClause,
+//       order: [['createdAt', 'DESC']],
+//     });
+
+//     res.json(enquiries);
+//   } catch (err) {
+//     console.error('❌ Filter Error:', err.message);
+//     res.status(500).json({ message: err.message });
+//   }
+// });
+
+// export default router;
+
+
 import express from 'express';
-import { Op } from 'sequelize';
 const router = express.Router();
-import Enquiry from '../models/Enquirymysql.js';
+import Enquiry from '../models/Enquiry.js'; // Ensure this is the Mongoose model
 
 // Helper: Convert array values to comma-separated strings
 const getStringValue = (value) => {
@@ -15,36 +222,23 @@ const getStringValue = (value) => {
 router.get('/', async (req, res) => {
   try {
     const { fromDate, toDate } = req.query;
-    let whereClause = {};
+    let query = {};
 
-    // Date range filtering
     if (fromDate || toDate) {
-      const dateFilter = {};
-      
+      query.createdAt = {};
       if (fromDate) {
         const from = new Date(fromDate);
         from.setHours(0, 0, 0, 0);
-        dateFilter[Op.gte] = from;
+        query.createdAt.$gte = from;
       }
-      
       if (toDate) {
         const to = new Date(toDate);
         to.setHours(23, 59, 59, 999);
-        if (dateFilter[Op.gte]) {
-          dateFilter[Op.and] = Op.lte(to);
-        } else {
-          dateFilter[Op.lte] = to;
-        }
+        query.createdAt.$lte = to;
       }
-      
-      whereClause.createdAt = dateFilter;
     }
 
-    const enquiries = await Enquiry.findAll({
-      where: whereClause,
-      order: [['createdAt', 'DESC']],
-    });
-    
+    const enquiries = await Enquiry.find(query).sort({ createdAt: -1 });
     res.json(enquiries);
   } catch (err) {
     console.error('❌ Get All Enquiries Error:', err.message);
@@ -52,13 +246,10 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 2. GET enquiries by client ID (all history)
+// 2. GET enquiries by client ID
 router.get('/client/:clientId', async (req, res) => {
   try {
-    const enquiries = await Enquiry.findAll({
-      where: { clientId: req.params.clientId },
-      order: [['createdAt', 'DESC']],
-    });
+    const enquiries = await Enquiry.find({ clientId: req.params.clientId }).sort({ createdAt: -1 });
     
     if (enquiries.length === 0) {
       return res.status(404).json({ message: 'No enquiries found for this client' });
@@ -71,10 +262,10 @@ router.get('/client/:clientId', async (req, res) => {
   }
 });
 
-// 3. GET single enquiry by ID
+// 3. GET single enquiry by MongoDB ID
 router.get('/:id', async (req, res) => {
   try {
-    const enquiry = await Enquiry.findByPk(req.params.id);
+    const enquiry = await Enquiry.findById(req.params.id);
     if (!enquiry) {
       return res.status(404).json({ message: 'Enquiry not found' });
     }
@@ -91,21 +282,16 @@ router.post('/', async (req, res) => {
     let clientId = null;
     const { phone, aadhaar, elderName, stage } = req.body;
 
-    // 1. Look for existing client to link rows
+    // Look for existing client
     if (phone && aadhaar) {
-      const existingClient = await Enquiry.findOne({
-        where: { phone, aadhaar },
-        order: [['createdAt', 'DESC']]
-      });
-
+      const existingClient = await Enquiry.findOne({ phone, aadhaar }).sort({ createdAt: -1 });
       if (existingClient) {
         clientId = existingClient.clientId;
       }
     }
 
-    // 2. Always create a NEW row for every submission
-    const newEntry = await Enquiry.create({
-      clientId: clientId, // Hook handles generation if this is null
+    const newEntry = new Enquiry({
+      clientId: clientId, // Mongoose hook handles generation if null
       elderName: elderName,
       familyName: req.body.familyName || null,
       phone: phone,
@@ -120,11 +306,11 @@ router.post('/', async (req, res) => {
       }],
     });
 
-    console.log(`✅ New Row Created | Client: ${newEntry.clientId} | Stage: ${newEntry.stage}`);
+    await newEntry.save();
+    console.log(`✅ New MongoDB Row Created | Client: ${newEntry.clientId}`);
     res.status(201).json(newEntry);
-
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    console.error('❌ Create Error:', err.message);
     res.status(400).json({ message: err.message });
   }
 });
@@ -132,14 +318,18 @@ router.post('/', async (req, res) => {
 // 5. UPDATE enquiry by ID
 router.put('/:id', async (req, res) => {
   try {
-    const enquiry = await Enquiry.findByPk(req.params.id);
-    if (!enquiry) {
+    const updatedEnquiry = await Enquiry.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedEnquiry) {
       return res.status(404).json({ message: 'Enquiry not found' });
     }
 
-    await enquiry.update(req.body);
-    console.log('✅ Enquiry Updated. ID:', enquiry.id);
-    res.json(enquiry);
+    console.log('✅ Enquiry Updated in MongoDB:', updatedEnquiry._id);
+    res.json(updatedEnquiry);
   } catch (err) {
     console.error('❌ Update Error:', err.message);
     res.status(400).json({ message: err.message });
@@ -149,12 +339,11 @@ router.put('/:id', async (req, res) => {
 // 6. DELETE enquiry by ID
 router.delete('/:id', async (req, res) => {
   try {
-    const enquiry = await Enquiry.findByPk(req.params.id);
-    if (!enquiry) {
+    const deletedEnquiry = await Enquiry.findByIdAndDelete(req.params.id);
+    if (!deletedEnquiry) {
       return res.status(404).json({ message: 'Enquiry not found' });
     }
-    await enquiry.destroy();
-    console.log('✅ Enquiry Deleted. ID:', req.params.id);
+    console.log('✅ Enquiry Deleted from MongoDB:', req.params.id);
     res.json({ message: 'Enquiry deleted successfully' });
   } catch (err) {
     console.error('❌ Delete Error:', err.message);
@@ -162,44 +351,111 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// 7. FILTER enquiries by stage, lead, care type, and date
+// 7. FILTER enquiries
 router.post('/filter', async (req, res) => {
   try {
     const { stage, lead, careType, fromDate, toDate } = req.body;
-    let whereClause = {};
+    let query = {};
 
-    if (stage) whereClause.stage = stage;
-    if (lead) whereClause.lead = lead;
-    if (careType) whereClause.careType = careType;
+    if (stage) query.stage = stage;
+    if (lead) query.lead = lead;
+    if (careType) query.careType = careType;
 
-    // Date range filtering
     if (fromDate || toDate) {
-      const dateFilter = {};
-      
+      query.createdAt = {};
       if (fromDate) {
         const from = new Date(fromDate);
         from.setHours(0, 0, 0, 0);
-        dateFilter[Op.gte] = from;
+        query.createdAt.$gte = from;
       }
-      
       if (toDate) {
         const to = new Date(toDate);
         to.setHours(23, 59, 59, 999);
-        dateFilter[Op.lte] = to;
+        query.createdAt.$lte = to;
       }
-      
-      whereClause.createdAt = dateFilter;
     }
 
-    const enquiries = await Enquiry.findAll({
-      where: whereClause,
-      order: [['createdAt', 'DESC']],
-    });
-
+    const enquiries = await Enquiry.find(query).sort({ createdAt: -1 });
     res.json(enquiries);
   } catch (err) {
     console.error('❌ Filter Error:', err.message);
     res.status(500).json({ message: err.message });
+  }
+});
+
+// 8. ASSIGN task to staff
+router.post('/:id/assign', async (req, res) => {
+  try {
+    const { staffId, durationHours } = req.body;
+    
+    const updatedEnquiry = await Enquiry.findByIdAndUpdate(
+      req.params.id,
+      { 
+        assignedTo: staffId,
+        taskStatus: 'In Progress',
+        assignedAt: new Date(),
+        durationHours: durationHours
+      },
+      { new: true }
+    );
+
+    if (!updatedEnquiry) {
+      return res.status(404).json({ message: 'Enquiry not found' });
+    }
+
+    console.log('✅ Task Assigned:', updatedEnquiry._id);
+    res.json(updatedEnquiry);
+  } catch (err) {
+    console.error('❌ Assign Error:', err.message);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// 9. COMPLETE task
+router.post('/:id/complete', async (req, res) => {
+  try {
+    const updatedEnquiry = await Enquiry.findByIdAndUpdate(
+      req.params.id,
+      { 
+        taskStatus: 'Completed',
+        completedAt: new Date()
+      },
+      { new: true }
+    );
+
+    if (!updatedEnquiry) {
+      return res.status(404).json({ message: 'Enquiry not found' });
+    }
+
+    console.log('✅ Task Completed:', updatedEnquiry._id);
+    res.json(updatedEnquiry);
+  } catch (err) {
+    console.error('❌ Complete Error:', err.message);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// 10. REOPEN task
+router.post('/:id/reopen', async (req, res) => {
+  try {
+    const updatedEnquiry = await Enquiry.findByIdAndUpdate(
+      req.params.id,
+      { 
+        taskStatus: 'In Progress',
+        reopenedAt: new Date()
+      },
+      { new: true }
+    );
+
+    if (!updatedEnquiry) {
+      return res.status(404).json({ message: 'Enquiry not found' });
+    }
+
+    console.log('✅ Task Reopened:', updatedEnquiry._id);
+    res.json(updatedEnquiry);
+  } catch (err) {
+    console.error('❌ Reopen Error:', err.message);
+    res.status(400).json({ message: err.message });
   }
 });
 

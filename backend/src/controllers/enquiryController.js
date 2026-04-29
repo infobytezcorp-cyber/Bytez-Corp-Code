@@ -121,7 +121,7 @@ export const updateEnquiry = async (req, res) => {
     const updates = req.body;
 
     const enquiry = await Enquiry.findByIdAndUpdate(id, updates, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     });
 
@@ -165,7 +165,7 @@ export const updateEnquiryStage = async (req, res) => {
     const enquiry = await Enquiry.findByIdAndUpdate(
       id,
       { stage },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!enquiry) {
@@ -203,7 +203,7 @@ export const addTimelineEntry = async (req, res) => {
           },
         },
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!enquiry) {
@@ -293,7 +293,7 @@ export const assignEnquiry = async (req, res) => {
     const enquiry = await Enquiry.findByIdAndUpdate(
       id,
       { assignedTo: userId },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate("assignedTo");
 
     if (!enquiry) {

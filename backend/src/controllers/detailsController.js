@@ -8,31 +8,29 @@ export const saveDetails = async (req, res) => {
       name,
       phone,
       email,
-      authorNumber,
+      aadhaarnumber,
       bloodGroup,
       purpose,
-      visitPerson,
       jobRole,
       experience,
       address
     } = req.body;
 
-    // ✅ validation
+    // validation
     if (!visitorId || !visitType) {
       return res.status(400).json({ message: "Required fields missing" });
     }
 
-    // ✅ create data
+    // create data
     const details = await VisitDetails.create({
       visitorId,
       visitType,
       name,
       phone,
       email,
-      authorNumber,
+      aadhaarnumber,
       bloodGroup,
       purpose,
-      visitPerson,
       jobRole,
       experience,
       address
@@ -52,6 +50,17 @@ export const getJobEnquiries = async (req, res) => {
 
     res.json(data);
 
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const getNormalEnquiries = async (req, res) => {
+  try {
+    const data = await VisitDetails.find({ visitType: "visitor" })
+      .populate("visitorId");
+
+    res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

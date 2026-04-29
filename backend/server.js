@@ -1,20 +1,13 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import path from "path";
+import { fileURLToPath } from "url";
+
 import express from "express";
 import cors from "cors";
 
-// import connectDB from "./src/config/db.js";
-// import { connectSQLiteDB } from "./src/config/sqliteDb.js";
-import { connectDB, sequelize } from './src/config/mysqlDb.js';
-
-//mysql db
-import User from "./src/models/User.js";
-import Otp from "./src/models/Otp.js";
-import VisitDetails from "./src/models/VisitDetails.js";
-import Enquiry from "./src/models/Enquirymysql.js";
-import Visitor from "./src/models/VisitorModule.js";
-
+import connectDB from "./src/config/db.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import protectedRoutes from "./src/routes/protectedRoutes.js";
 import otpRoutes from "./src/routes/otpRoutes.js";
@@ -22,21 +15,25 @@ import userRoutes from "./src/routes/userRoutes.js";
 import visitorRoutes from "./src/routes/visitorRoutes.js";
 import detailsRoutes from "./src/routes/detailsRoutes.js";
 import enquiryRoutes from "./src/routes/enquiryRoutes.js";
+import hrRoutes from "./src/routes/hrRoutes.js";
+import tasksRoutes from "./src/routes/tasks.js";
+
+connectDB();
 
 const app = express();
 
-// --- Middleware ---
+// ✅ CORS
 app.use(cors({
   origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
   credentials: false
 }));
 
 app.options(/.*/, cors());
 app.use(express.json());
 
-// --- Routes ---
+// ✅ API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/users", userRoutes);
@@ -44,31 +41,27 @@ app.use("/api/otp", otpRoutes);
 app.use("/api/visitor", visitorRoutes);
 app.use("/api/userdetails", detailsRoutes);
 app.use("/api/enquiries", enquiryRoutes);
+app.use("/api/hr", hrRoutes);
+app.use("/api/tasks", tasksRoutes);
+app.use("/api/staff", tasksRoutes); 
+// 🔥 FIXED STATIC PATH (IMPORTANT)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// --- Server Start Logic ---
-const startServer = async () => {
-  try {
-    // 1. MySQL Connection & Table Sync
-    console.log("⏳ Connecting to MySQL...");
-    await connectDB(); // Database connection logic
+// 👉 go from backend → project root → client/dist
+const distPath = path.join(__dirname, "../client/dist");
 
-    // 2. Automatical-aa tables create panna indha line mukkiyam
-    // alter: true - Neenga model-la change panna MySQL table automatic-aa update aagum
-    await sequelize.sync({ alter: true });
-    console.log("✅ All MySQL Tables synced and created successfully!");
+// ✅ serve frontend
+app.use(express.static(distPath));
 
-    // 3. Port Configuration
-    const port = process.env.PORT || 8000;
-    app.listen(port, "0.0.0.0", () => {
-      console.log(`🚀 Server running on port ${port}`);
-      console.log(`📡 Local Access: http://localhost:${port}`);
-    });
+// ✅ visitor route
+app.get("/visitor", (req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
+});
 
-  } catch (error) {
-    // Endha error vandhalum inga catch aagum
-    console.error("❌ Failed to start the server:", error.message);
-    process.exit(1); 
-  }
-};
+// ✅ server start
+const port = process.env.PORT || 8000;
 
-startServer();
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server running on port ${port}`);
+});

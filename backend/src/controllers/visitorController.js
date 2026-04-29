@@ -78,9 +78,9 @@ export const checkoutVisitor = async (req, res) => {
 
         await visitor.save();
 
-        res.json(visitor);
+        res.json({success: true, visitor});
     } catch (err) {
-        res.status(500).json(err.message);
+        res.status(500).json({message: err.message});
     }
 };
 
@@ -92,7 +92,7 @@ export const updateVisitor = async (req, res) => {
         const visitor = await Visitor.findByIdAndUpdate(
             req.params.id,
             { name },
-            { new: true }
+            { returnDocument: 'after' }
         );
 
         if (!visitor) {

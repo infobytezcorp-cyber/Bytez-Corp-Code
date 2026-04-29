@@ -48,6 +48,30 @@ const enquirySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // Task fields for assignment and tracking
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+      default: null,
+    },
+    assignedAt: {
+      type: Date,
+    },
+    taskDurationHours: {
+      type: Number,
+    },
+    duration: {
+      type: String,
+      default: "",
+    },
+    taskStatus: {
+      type: String,
+      enum: ["New", "Unassigned", "In Progress", "Completed"],
+      default: "New",
+    },
+    completedAt: {
+      type: Date,
+    },
     timeline: {
       type: [mongoose.Schema.Types.Mixed],
       default: [],
@@ -56,11 +80,7 @@ const enquirySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    assignedTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
+    
   },
   {
     timestamps: true,
