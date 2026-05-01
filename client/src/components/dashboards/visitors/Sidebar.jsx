@@ -1,27 +1,30 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../../../utils/auth";
 import { useState } from "react";
+import { analytics, collapseClose, collapseexpand, dashboard, enquiry, leaves, logoutBtn, settings, Transaction, trend, visitor } from "../../../utils/icons";
 
 const icons = {
-  dashboard: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
-  clients:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>,
-  projects:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
-  tasks:     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
-  leaves:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-  enquiry:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-  manager:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
-  logout:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
-  collapse:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>,
-  expand:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>,
+  dashboard,
+  enquiry: enquiry,
+  manager: trend,
+  logout: logoutBtn,
+  collapse: collapseClose,
+  expand: collapseexpand,
+  visitor: visitor,
+  analytics: analytics,
+  settings: settings,
+  leaves: leaves
+
 };
 
 const adminItems = [
-  { label: "Dashboard", path: "/admin",    icon: icons.dashboard },
-  { label: "visitorpage", path: "/visitorpage",    icon: icons.visitor },
-  { label: "analytics",  path: "/analytics", icon: icons.analytics  },
-    { label: "Enquiry",  path: "/enquiry", icon: icons.enquiry },
-  { label: "settings",     path: "/settings",    icon: icons.settings },
-  { label: "Leaves",    path: "/leaves",   icon: icons.leaves },
+  { label: "Dashboard", path: "/admin", icon: icons.dashboard },
+  { label: "visitorpage", path: "/visitorpage", icon: icons.visitor },
+  { label: "Calls", path: "/EnquiryCalls", icon: icons.leaves },
+  { label: "analytics", path: "/analytics", icon: icons.analytics },
+  { label: "Enquiry", path: "/enquiry", icon: icons.enquiry },
+  { label: "settings", path: "/settings", icon: icons.settings },
+
 
 
 ];
@@ -31,17 +34,14 @@ function NavItem({ label, path, icon, isActive, onClick, collapsed }) {
     <li
       onClick={onClick}
       title={collapsed ? label : ""}
-      className={`flex items-center gap-2.5 py-2 rounded-lg cursor-pointer mb-0.5 border transition-all ${
-        collapsed ? "justify-center px-2" : "px-2.5"
-      } ${
-        isActive
+      className={`flex items-center gap-2.5 py-2 rounded-lg cursor-pointer mb-0.5 border transition-all ${collapsed ? "justify-center px-2" : "px-2.5"
+        } ${isActive
           ? "bg-blue-900/30 border-blue-600/30"
           : "border-transparent hover:bg-white/5"
-      }`}
+        }`}
     >
-      <div className={`w-8 h-8 min-w-[32px] rounded-lg flex items-center justify-center ${
-        isActive ? "bg-blue-700/40 text-blue-300" : "bg-white/5 text-white/40"
-      }`}>
+      <div className={`w-8 h-8 min-w-[32px] rounded-lg flex items-center justify-center ${isActive ? "bg-blue-700/40 text-blue-300" : "bg-white/5 text-white/40"
+        }`}>
         {icon}
       </div>
       {!collapsed && (
@@ -61,8 +61,8 @@ export default function Sidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
-  const role  = localStorage.getItem("role");
-  const name  = localStorage.getItem("name")  || "Admin";
+  const role = localStorage.getItem("role");
+  const name = localStorage.getItem("name") || "Admin";
   const email = localStorage.getItem("email") || "";
   const initials = name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
@@ -118,16 +118,20 @@ export default function Sidebar() {
           {/* MANAGER */}
           {role === "manager" && (
             <>
-              <NavItem label="Manager Panel" path="/manager"  icon={icons.manager}  collapsed={collapsed} isActive={location.pathname === "/manager"}  onClick={() => navigate("/manager")} />
-              <NavItem label="Projects"      path="/projects" icon={icons.projects} collapsed={collapsed} isActive={location.pathname === "/projects"} onClick={() => navigate("/projects")} />
-              <NavItem label="Tasks"         path="/tasks"    icon={icons.tasks}    collapsed={collapsed} isActive={location.pathname === "/tasks"}    onClick={() => navigate("/tasks")} />
-              <NavItem label="Leaves"        path="/leaves"   icon={icons.leaves}   collapsed={collapsed} isActive={location.pathname === "/leaves"}   onClick={() => navigate("/leaves")} />
+              <NavItem label="Manager Panel" path="/manager" icon={icons.manager} collapsed={collapsed} isActive={location.pathname === "/manager"} onClick={() => navigate("/manager")} />
+              <NavItem label="Projects" path="/projects" icon={icons.projects} collapsed={collapsed} isActive={location.pathname === "/projects"} onClick={() => navigate("/projects")} />
+              <NavItem label="Tasks" path="/tasks" icon={icons.tasks} collapsed={collapsed} isActive={location.pathname === "/tasks"} onClick={() => navigate("/tasks")} />
+              <NavItem label="Leaves" path="/leaves" icon={icons.leaves} collapsed={collapsed} isActive={location.pathname === "/leaves"} onClick={() => navigate("/leaves")} />
             </>
           )}
 
           {/* USER */}
           {role === "user" && (
             <NavItem label="User Home" path="/user" icon={icons.clients} collapsed={collapsed} isActive={location.pathname === "/user"} onClick={() => navigate("/user")} />
+          )}
+
+          {role === "telecaller" && (
+            <NavItem label="Telecaller Home" path="/telecaller" icon={icons.clients} collapsed={collapsed} isActive={location.pathname === "/telecaller"} onClick={() => navigate("/telecaller")} />
           )}
         </ul>
 
@@ -138,9 +142,8 @@ export default function Sidebar() {
         <li
           onClick={logout}
           title={collapsed ? "Logout" : ""}
-          className={`flex items-center gap-2.5 py-2 rounded-lg cursor-pointer border border-red-500/20 hover:bg-red-500/8 transition-all list-none ${
-            collapsed ? "justify-center px-2" : "px-2.5"
-          }`}
+          className={`flex items-center gap-2.5 py-2 rounded-lg cursor-pointer border border-red-500/20 hover:bg-red-500/8 transition-all list-none ${collapsed ? "justify-center px-2" : "px-2.5"
+            }`}
         >
           <div className="w-8 h-8 min-w-[32px] rounded-lg bg-red-500/10 flex items-center justify-center text-red-400">
             {icons.logout}

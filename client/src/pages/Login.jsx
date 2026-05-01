@@ -16,6 +16,7 @@ export default function Login() {
 
             if (role === "admin") navigate("/admin");
             else if (role === "manager") navigate("/manager");
+            else if (role === "telecaller") navigate("/telecaller");
             else navigate("/user");
         }
     }, [navigate]);
@@ -36,9 +37,11 @@ export default function Login() {
             localStorage.setItem("name", res.data.name);
             localStorage.setItem("email", res.data.email);
             showToast("Login successful");
+            
             // 🔥 redirect after login
             if (res.data.role === "admin") navigate("/admin");
             else if (res.data.role === "manager") navigate("/manager");
+            else if (res.data.role === "telecaller") navigate("/telecaller");
             else navigate("/user");
 
         } catch (err) {

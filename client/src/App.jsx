@@ -15,9 +15,23 @@ import JobRegistorForm from "./components/dashboards/visitors/JobRegistorForm";
 import Enquiry from "./pages/Enquiry";
 import ModulesPage from "./pages/ModulesPage";
 import VisitorPage from "./pages/VisitorPage";
+import EnquiryCalls from "./pages/EnquiryCalls";
+import TelecallerPage from "./pages/TelecallerPage";
+import socket from "./services/socket";
+import { useEffect } from "react";
+
+
+
 
 
 function App() {
+  useEffect(() => {
+    socket.connect();
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
   return (
     <>
       <Toaster position="top-right" reverseOrder={false} />
@@ -33,14 +47,8 @@ function App() {
           <Route path="/visitor" element={<VisitorRegistration />} />
           <Route path="/success" element={<SuccessPage />} />
           <Route path="/jobform" element={<JobRegistorForm />} />
-          <Route
-            path="/enquiry"
-            element={
-              <ProtectedRoute role="admin">
-                <Enquiry />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/EnquiryCalls" element={<EnquiryCalls />} />
+
           <Route
             path="/enquiry"
             element={
@@ -70,6 +78,14 @@ function App() {
             element={
               <ProtectedRoute role="user">
                 <User />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/telecaller"
+            element={
+              <ProtectedRoute role="telecaller">
+                <TelecallerPage />
               </ProtectedRoute>
             }
           />

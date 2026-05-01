@@ -102,6 +102,8 @@ const PER_PAGE = 5;
 const JobEnquiry = () => {
   const dispatch = useDispatch();
   const { data = [], loading } = useSelector((state) => state.jobs);
+  // console.log("Jobs data:", data);        // check if array has items
+  // console.log("First item:", data[0]);    // check the structure
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

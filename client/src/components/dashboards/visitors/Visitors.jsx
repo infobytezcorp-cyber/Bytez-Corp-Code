@@ -49,7 +49,6 @@ const Visitors = () => {
         }
     };
 
-
     const checkout = async (id) => {
         try {
             await axios.put(`${API}/api/visitor/${id}/checkout`);

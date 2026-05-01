@@ -25,6 +25,10 @@ router.post("/send-otp", async (req, res) => {
       process.env.TWILIO_AUTH
     );
 
+    console.log("SID:", process.env.TWILIO_SID);
+    console.log("AUTH:", process.env.TWILIO_AUTH);
+    console.log("PHONE:", process.env.TWILIO_PHONE);
+
     await client.messages.create({
       body: `Your OTP is ${otp}`,
       from: process.env.TWILIO_PHONE,
@@ -34,7 +38,8 @@ router.post("/send-otp", async (req, res) => {
     res.json({ success: true, message: "OTP Sent" });
 
   } catch (error) {
-    console.log("SMS Error:", error.message);
+    // console.log("SMS Error:", error.message);
+    console.log("FULL ERROR:", error);
     res.status(500).json({ success: false });
   }
 });

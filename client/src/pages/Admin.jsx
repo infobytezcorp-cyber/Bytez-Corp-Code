@@ -2,6 +2,7 @@ import { useState } from "react";
 import Sidebar from "../components/dashboards/visitors/Sidebar";
 import ModulesPage from "./ModulesPage";
 import AddUser from "../pages/Register";
+import { dashboard } from "../utils/icons";
 
 export default function Admin() {
   const [showModules, setShowModules] = useState(false);
@@ -34,7 +35,7 @@ export default function Admin() {
               Modules
             </button>
 
-            {/* ✅ FIXED Create User */}
+            {/* FIXED Create User */}
             <button
               onClick={() => setOpenForm(true)}
               className="bg-gray-900 text-white text-xs px-4 py-2 rounded-lg"

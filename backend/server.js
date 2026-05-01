@@ -6,20 +6,44 @@ import { fileURLToPath } from "url";
 
 import express from "express";
 import cors from "cors";
+import http from "http";
+import { Server } from "socket.io";
 
 import connectDB from "./src/config/db.js";
+import { connectSQLiteDB } from "./src/config/sqliteDb.js";
+
 import authRoutes from "./src/routes/authRoutes.js";
 import protectedRoutes from "./src/routes/protectedRoutes.js";
 import otpRoutes from "./src/routes/otpRoutes.js";
 import userRoutes from "./src/routes/userRoutes.js";
 import visitorRoutes from "./src/routes/visitorRoutes.js";
 import detailsRoutes from "./src/routes/detailsRoutes.js";
-
-connectDB();
+import enquiryRoutes from "./src/routes/enquiryRoutes.js";
+import callRoutes from "./src/routes/callRoutes.js";
+import agentRoutes from "./src/routes/agentRoutes.js";
 
 const app = express();
 
-// ✅ CORS
+// CREATE HTTP SERVER (IMPORTANT)
+const server = http.createServer(app);
+
+// SOCKET.IO SETUP
+export const io = new Server(server, {
+  cors: {
+    origin: "*",
+  },
+});
+
+// 🔹 Optional: connection log
+io.on("connection", (socket) => {
+  console.log("⚡ Client connected:", socket.id);
+
+  socket.on("disconnect", (reason) => {
+    console.log("❌ Client disconnected:", socket.id, reason);
+  });
+});
+
+// CORS
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -30,32 +54,44 @@ app.use(cors({
 app.options(/.*/, cors());
 app.use(express.json());
 
-// ✅ API Routes
+// --- Routes ---
 app.use("/api/auth", authRoutes);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/visitor", visitorRoutes);
 app.use("/api/userdetails", detailsRoutes);
+app.use("/api/enquiries", enquiryRoutes);
+app.use("/api/calls", callRoutes);
+app.use("/api/agents", agentRoutes);
 
-// 🔥 FIXED STATIC PATH (IMPORTANT)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// --- Server Start Logic ---
+const startServer = async () => {
+  try {
+    // MongoDB (optional)
+    try {
+      await connectDB();
+      console.log("MongoDB connected successfully");
+    } catch (mongoError) {
+      console.warn("MongoDB connection failed (optional):", mongoError.message);
+      console.log("Using SQLite fallback");
+    }
 
-// 👉 go from backend → project root → client/dist
-const distPath = path.join(__dirname, "../client/dist");
+    // SQLite (required)
+    await connectSQLiteDB();
+    console.log("SQLite connected successfully");
 
-// ✅ serve frontend
-app.use(express.static(distPath));
+    const port = process.env.PORT || 8000;
 
-// ✅ visitor route
-app.get("/visitor", (req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
-});
+    // START SERVER (IMPORTANT)
+    server.listen(port, "0.0.0.0", () => {
+      console.log(`Server running on port ${port}`);
+    });
 
-// ✅ server start
-const port = process.env.PORT || 8000;
+  } catch (error) {
+    console.error("Failed to start the server:", error.message);
+    process.exit(1);
+  }
+};
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Server running on port ${port}`);
-});
+startServer();

@@ -739,7 +739,6 @@ function SuccessScreen({ form, onReset }) {
         >
           Register Another Visitor
         </button>
-
       </div>
     </div>
   );

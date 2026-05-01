@@ -16,11 +16,11 @@ const userSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: true // ✅ change this
+    required: true
   },
   role: {
     type: String,
-    enum: ["admin", "manager", "user"],
+    enum: ["admin", "manager", "user", "telecaller"], // ✅ telecaller added
     default: "user"
   }
 }, { timestamps: true });

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ENQUIRY_LEADS } from '../../constants/enquiryConstants';
 
-const EnquiryDetailModal = ({ enquiry, onClose, onSave }) => {
+const EnquiryDetailModal = ({ enquiry, allEnquiries, onClose, onSave }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
     elderName: enquiry?.elderName || '',
@@ -8,9 +9,18 @@ const EnquiryDetailModal = ({ enquiry, onClose, onSave }) => {
     phone: enquiry?.phone || '',
     email: enquiry?.email || '',
     stage: enquiry?.stage || '',
-    source: enquiry?.source || '',
+    lead: enquiry?.lead || enquiry?.source || '',
     careType: enquiry?.careType || '',
   });
+
+  // Get all submissions for this client (same clientId) sorted by date
+  const clientHistory = useMemo(() => {
+    if (!enquiry?.clientId || !allEnquiries) return [];
+    
+    return allEnquiries
+      .filter(e => e.clientId === enquiry.clientId)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  }, [enquiry?.clientId, allEnquiries]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -21,17 +31,6 @@ const EnquiryDetailModal = ({ enquiry, onClose, onSave }) => {
   }, []);
 
   if (!enquiry) return null;
-
-  // Generate unique client ID format (ABCDE12345)
-  const generateClientId = (id) => {
-    if (!id) return 'N/A';
-    const letters = id.substring(0, 5).toUpperCase().replace(/[0-9]/g, (match, offset) => {
-      const letterMap = ['A', 'B', 'C', 'D', 'E'];
-      return letterMap[offset % 5];
-    });
-    const numbers = id.substring(id.length - 5);
-    return `${letters}${numbers}`;
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -58,7 +57,7 @@ const EnquiryDetailModal = ({ enquiry, onClose, onSave }) => {
       phone: enquiry.phone || '',
       email: enquiry.email || '',
       stage: enquiry.stage || '',
-      source: enquiry.source || '',
+      lead: enquiry.lead || enquiry.source || '',
       careType: enquiry.careType || '',
     });
     setIsEditMode(false);
@@ -66,10 +65,10 @@ const EnquiryDetailModal = ({ enquiry, onClose, onSave }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4 overflow-hidden">
-      <div className="bg-white rounded-xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl w-full sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 flex-shrink-0 bg-white">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Enquiry Details</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Client Details & History</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -86,7 +85,7 @@ const EnquiryDetailModal = ({ enquiry, onClose, onSave }) => {
           <div className="mb-4 sm:mb-6 pb-4 sm:pb-6 border-b border-gray-200">
             <p className="text-xs text-gray-600 mb-2">Client ID</p>
             <div className="inline-block bg-blue-100 text-blue-700 px-3 sm:px-4 py-1 sm:py-2 rounded-lg font-mono font-bold text-sm sm:text-lg">
-              {generateClientId(enquiry._id)}
+              {enquiry.clientId || 'N/A'}
             </div>
           </div>
 
@@ -103,6 +102,11 @@ const EnquiryDetailModal = ({ enquiry, onClose, onSave }) => {
                   <p className="text-xs sm:text-sm text-gray-600">Family Name</p>
                   <p className="text-sm sm:text-base font-medium text-gray-900">{enquiry.familyName || '-'}</p>
                 </div>
+                <div>
+                  <p className="text-xs sm:text-sm text-gray-600">Aadhaar</p>
+                  <p className="text-sm sm:text-base font-medium text-gray-900">{enquiry.aadhaar || '-'}</p>
+                </div>
+
                 <div>
                   <p className="text-xs sm:text-sm text-gray-600">Phone</p>
                   <p className="text-sm sm:text-base font-medium text-gray-900">{enquiry.phone}</p>
@@ -164,12 +168,19 @@ const EnquiryDetailModal = ({ enquiry, onClose, onSave }) => {
             {!isEditMode ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <p className="text-xs sm:text-sm text-gray-600">Stage</p>
-                  <p className="text-sm sm:text-base font-medium text-gray-900">{enquiry.stage}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">First Stage</p>
+                  <p className="text-sm sm:text-base font-medium text-gray-900">{enquiry.firstStage || enquiry.stage}</p>
                 </div>
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+  <div>
+    <p className="text-xs sm:text-sm text-gray-600">Stage</p>
+    <p className="text-sm sm:text-base font-medium text-gray-900">{enquiry.currentStage}</p>
+  </div>
+  {/* First Stage row inge thevaiyillai, yenil ithu thani row-aaga table-il irukkum */}
+</div>
                 <div>
-                  <p className="text-xs sm:text-sm text-gray-600">Source</p>
-                  <p className="text-sm sm:text-base font-medium text-gray-900">{enquiry.source}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Leads</p>
+                  <p className="text-sm sm:text-base font-medium text-gray-900">{enquiry.lead || enquiry.source}</p>
                 </div>
                 <div>
                   <p className="text-xs sm:text-sm text-gray-600">Care Type</p>
@@ -199,17 +210,47 @@ const EnquiryDetailModal = ({ enquiry, onClose, onSave }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">Source</label>
+                  <label className="block text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">Leads</label>
                   <select
-                    name="source"
-                    value={formData.source}
+                    name="lead"
+                    value={formData.lead}
                     onChange={handleInputChange}
                     className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="Tawk.to">Tawk.to</option>
-                    <option value="Website">Website</option>
-                    <option value="Telecaller">Telecaller</option>
-                    <option value="Referral">Referral</option>
+                    <optgroup label="Online">
+                      <option value={ENQUIRY_LEADS.WEBSITE}>{ENQUIRY_LEADS.WEBSITE}</option>
+                      <option value={ENQUIRY_LEADS.WHATSAPP}>{ENQUIRY_LEADS.WHATSAPP}</option>
+                      <option value={ENQUIRY_LEADS.FACEBOOK}>{ENQUIRY_LEADS.FACEBOOK}</option>
+                      <option value={ENQUIRY_LEADS.INSTAGRAM}>{ENQUIRY_LEADS.INSTAGRAM}</option>
+                      <option value={ENQUIRY_LEADS.LINKEDIN}>{ENQUIRY_LEADS.LINKEDIN}</option>
+                      <option value={ENQUIRY_LEADS.YELLOW_PAGE}>{ENQUIRY_LEADS.YELLOW_PAGE}</option>
+                      <option value={ENQUIRY_LEADS.MAIL}>{ENQUIRY_LEADS.MAIL}</option>
+                      <option value={ENQUIRY_LEADS.TAWK_TO}>{ENQUIRY_LEADS.TAWK_TO}</option>
+                      <option value={ENQUIRY_LEADS.META_CAMPAIGNS}>{ENQUIRY_LEADS.META_CAMPAIGNS}</option>
+                      <option value={ENQUIRY_LEADS.GOOGLE_CAMPAIGNS}>{ENQUIRY_LEADS.GOOGLE_CAMPAIGNS}</option>
+                    </optgroup>
+                    <optgroup label="Offline - Referral">
+                      <option value={ENQUIRY_LEADS.OLD_CLIENTS}>{ENQUIRY_LEADS.OLD_CLIENTS}</option>
+                      <option value={ENQUIRY_LEADS.EXISTING_CLIENTS}>{ENQUIRY_LEADS.EXISTING_CLIENTS}</option>
+                    </optgroup>
+                    <optgroup label="Offline - Professional">
+                      <option value={ENQUIRY_LEADS.DOCTOR}>{ENQUIRY_LEADS.DOCTOR}</option>
+                      <option value={ENQUIRY_LEADS.MEDICAL}>{ENQUIRY_LEADS.MEDICAL}</option>
+                      <option value={ENQUIRY_LEADS.NURSE}>{ENQUIRY_LEADS.NURSE}</option>
+                    </optgroup>
+                    <optgroup label="Offline - Unprofessional">
+                      <option value={ENQUIRY_LEADS.COMPOUNDER}>{ENQUIRY_LEADS.COMPOUNDER}</option>
+                      <option value={ENQUIRY_LEADS.ELECTRICIAN}>{ENQUIRY_LEADS.ELECTRICIAN}</option>
+                      <option value={ENQUIRY_LEADS.PLUMBER}>{ENQUIRY_LEADS.PLUMBER}</option>
+                    </optgroup>
+                    <optgroup label="Offline - Events & Stalls">
+                      <option value={ENQUIRY_LEADS.CAMP}>{ENQUIRY_LEADS.CAMP}</option>
+                      <option value={ENQUIRY_LEADS.STALL}>{ENQUIRY_LEADS.STALL}</option>
+                      <option value={ENQUIRY_LEADS.EVENT}>{ENQUIRY_LEADS.EVENT}</option>
+                    </optgroup>
+                    <optgroup label="Offline - Business Partners">
+                      <option value={ENQUIRY_LEADS.BUSINESS_PARTNERS}>{ENQUIRY_LEADS.BUSINESS_PARTNERS}</option>
+                    </optgroup>
                   </select>
                 </div>
                 <div>
@@ -226,22 +267,45 @@ const EnquiryDetailModal = ({ enquiry, onClose, onSave }) => {
             )}
           </div>
 
-          {/* Timeline */}
-          {enquiry.timeline && enquiry.timeline.length > 0 && (
+          {/* Submission History for this Client */}
+          {clientHistory && clientHistory.length > 0 && (
             <div className="mb-4 sm:mb-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Timeline</h3>
-              <div className="space-y-2 sm:space-y-3">
-                {enquiry.timeline.map((entry, index) => (
-                  <div key={index} className="flex gap-2 sm:gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 mt-1 sm:mt-2 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs sm:text-sm font-medium text-gray-900">{entry.event}</p>
-                      <p className="text-xs text-gray-600">
-                        {new Date(entry.date).toLocaleDateString()}
-                      </p>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                Submission History ({clientHistory.length} submissions)
+              </h3>
+              <div className="space-y-4 sm:space-y-5">
+                {clientHistory.map((entry, index) => {
+                  const stageColors = {
+                    'New Enquiry': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                    'Contact': 'bg-blue-50 text-blue-700 border-blue-200',
+                    'Pitching': 'bg-purple-50 text-purple-700 border-purple-200',
+                    'Enrolled': 'bg-green-50 text-green-700 border-green-200'
+                  };
+                  const colorClass = stageColors[entry.stage] || 'bg-gray-50 text-gray-700 border-gray-200';
+                  
+                  return (
+                    <div key={entry._id || entry.id} className={`p-4 sm:p-5 rounded-lg border ${colorClass}`}>
+                      {/* Header with Stage and Badge */}
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-semibold text-sm sm:text-base">
+                            Submission #{index + 1}: <span className="font-bold">{entry.stage}</span>
+                          </p>
+                          <p className="text-xs sm:text-sm mt-1">
+                            📅 {new Date(entry.createdAt).toLocaleDateString()} 
+                            {' '}
+                            ⏰ {new Date(entry.createdAt).toLocaleTimeString()}
+                          </p>
+                        </div>
+                        {index === clientHistory.length - 1 && (
+                          <span className="ml-2 px-2 py-1 bg-white text-xs font-bold rounded-full">
+                            LATEST
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

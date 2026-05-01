@@ -27,7 +27,6 @@ export default function VisitorRegistration() {
   const [step, setStep] = useState(1);
   const [otp, setOtp] = useState("");
 
-
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = "Name is required";
@@ -36,7 +35,6 @@ export default function VisitorRegistration() {
     if (!form.purpose) e.purpose = "Select a purpose";
     return Object.keys(e).length === 0;
   };
-
 
 
   const sendOtp = async () => {
