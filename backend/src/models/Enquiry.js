@@ -10,7 +10,7 @@ const enquirySchema = new mongoose.Schema(
     },
     elderName: {
       type: String,
-      required: [true, "Elder Name is required"],
+      required: [true, "Elder Name is required"], 
       trim: true,
     },
     familyName: {
@@ -35,6 +35,14 @@ const enquirySchema = new mongoose.Schema(
       type: String,
       lowercase: true,
       trim: true,
+    },
+    personalDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    stageDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
     stage: {
       type: String,
@@ -80,7 +88,30 @@ const enquirySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    
+    documents: {
+      aadharDocument: {
+        fileName: {
+          type: String,
+          default: null,
+        },
+        fileSize: {
+          type: Number,
+          default: null,
+        },
+        fileType: {
+          type: String,
+          default: null,
+        },
+        data: {
+          type: Buffer, // BSON Binary Data Type
+          default: null,
+        },
+        uploadedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+    },
   },
   {
     timestamps: true,

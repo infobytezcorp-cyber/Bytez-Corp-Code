@@ -209,6 +209,7 @@
 import express from 'express';
 const router = express.Router();
 import Enquiry from '../models/Enquiry.js'; // Ensure this is the Mongoose model
+import { getAadharDocument } from '../controllers/enquiryController.js';
 
 // Helper: Convert array values to comma-separated strings
 const getStringValue = (value) => {
@@ -297,13 +298,16 @@ router.post('/', async (req, res) => {
       phone: phone,
       aadhaar: aadhaar || null,
       email: req.body.email || null,
+      personalDetails: req.body.personalDetails || {},
+      stageDetails: req.body.stageDetails || {},
       careType: getStringValue(req.body.careType),
       lead: getStringValue(req.body.source || req.body.lead),
       stage: stage || 'New Enquiry',
+      notes: req.body.notes || '',
       timeline: [{ 
         event: `Stage Recorded: ${stage || 'New Enquiry'}`, 
         date: new Date().toISOString() 
-      }],
+      }, ...(req.body.timeline || [])],
     });
 
     await newEntry.save();
@@ -318,9 +322,39 @@ router.post('/', async (req, res) => {
 // 5. UPDATE enquiry by ID
 router.put('/:id', async (req, res) => {
   try {
+    const updates = { ...req.body };
+    const aadharDoc =
+      updates['stageDetails.stage3']?.aadharDocument ||
+      updates.stageDetails?.stage3?.aadharDocument;
+
+    if (aadharDoc?.data) {
+      const base64String = typeof aadharDoc.data === 'string' && aadharDoc.data.includes(',')
+        ? aadharDoc.data.split(',')[1]
+        : aadharDoc.data;
+      const binaryData = Buffer.from(base64String, 'base64');
+
+      updates.documents = {
+        ...(updates.documents || {}),
+        aadharDocument: {
+          fileName: aadharDoc.name || aadharDoc.fileName || 'aadhar-document',
+          fileSize: aadharDoc.size || binaryData.length,
+          fileType: aadharDoc.type || aadharDoc.fileType || 'application/octet-stream',
+          data: binaryData,
+          uploadedAt: new Date(),
+        },
+      };
+
+      if (updates['stageDetails.stage3']) {
+        delete updates['stageDetails.stage3'].aadharDocument;
+      }
+      if (updates.stageDetails?.stage3) {
+        delete updates.stageDetails.stage3.aadharDocument;
+      }
+    }
+
     const updatedEnquiry = await Enquiry.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
+      { $set: updates },
       { new: true, runValidators: true }
     );
 
@@ -458,5 +492,8 @@ router.post('/:id/reopen', async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 });
+
+// 17. GET Aadhar Document
+router.get('/:id/document/aadhar', getAadharDocument);
 
 export default router;

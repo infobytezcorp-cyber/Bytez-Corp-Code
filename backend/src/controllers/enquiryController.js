@@ -1,5 +1,27 @@
 import Enquiry from "../models/Enquiry.js";
 
+const getStoredAadharDocument = (enquiry) => (
+  enquiry?.documents?.aadharDocument ||
+  enquiry?.stageDetails?.stage3?.aadharDocument ||
+  enquiry?.get?.('stageDetails.stage3.aadharDocument')
+);
+
+const getAadharBinaryData = (aadharDoc) => {
+  if (!aadharDoc?.data) return null;
+
+  const rawData = aadharDoc.data;
+
+  if (Buffer.isBuffer(rawData)) return rawData;
+  if (rawData?.buffer) return Buffer.from(rawData.buffer);
+  if (Array.isArray(rawData?.data)) return Buffer.from(rawData.data);
+  if (typeof rawData === 'string') {
+    const base64String = rawData.includes(',') ? rawData.split(',')[1] : rawData;
+    return Buffer.from(base64String, 'base64');
+  }
+
+  return null;
+};
+
 // ✅ 1. GET all enquiries with date range filtering
 export const getAllEnquiries = async (req, res) => {
   try {
@@ -118,7 +140,48 @@ export const createEnquiry = async (req, res) => {
 export const updateEnquiry = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    let updates = req.body;
+
+    // Handle Aadhar document from stage3 (check both locations)
+    const aadharDoc = updates['stageDetails.stage3']?.aadharDocument || updates.stageDetails?.stage3?.aadharDocument;
+    
+    if (aadharDoc && aadharDoc.data) {
+      // Convert base64 to Buffer (BSON Binary type)
+      let binaryData = null;
+      try {
+        // Remove data URI prefix if present (e.g., "data:image/png;base64,")
+        const base64String = aadharDoc.data.includes(',') 
+          ? aadharDoc.data.split(',')[1] 
+          : aadharDoc.data;
+        
+        binaryData = Buffer.from(base64String, 'base64');
+        console.log(`✅ Converted base64 to binary buffer (${binaryData.length} bytes)`);
+      } catch (conversionErr) {
+        console.error('❌ Base64 to Buffer conversion error:', conversionErr.message);
+        throw new Error('Invalid file data format');
+      }
+
+      // Store in documents field
+      updates.documents = {
+        aadharDocument: {
+          fileName: aadharDoc.name || 'aadhar-document',
+          fileSize: aadharDoc.size || binaryData?.length || 0,
+          fileType: aadharDoc.type || 'application/octet-stream',
+          data: binaryData,
+          uploadedAt: new Date(),
+        },
+      };
+      
+      // Remove from stageDetails to avoid storing base64 string
+      if (updates['stageDetails.stage3']) {
+        delete updates['stageDetails.stage3'].aadharDocument;
+      }
+      if (updates.stageDetails?.stage3) {
+        delete updates.stageDetails.stage3.aadharDocument;
+      }
+      
+      console.log(`✅ Aadhar document processed and stored in documents field`);
+    }
 
     const enquiry = await Enquiry.findByIdAndUpdate(id, updates, {
       returnDocument: 'after',
@@ -129,6 +192,7 @@ export const updateEnquiry = async (req, res) => {
       return res.status(404).json({ message: "Enquiry not found" });
     }
 
+    console.log(`✅ Enquiry ${id} updated with document handling`);
     res.json({ message: "Enquiry updated successfully", enquiry });
   } catch (err) {
     console.error("❌ Update Enquiry Error:", err.message);
@@ -325,6 +389,52 @@ export const getEnquiriesCountByStage = async (req, res) => {
     res.json(counts);
   } catch (err) {
     console.error("❌ Get Enquiries Count By Stage Error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ✅ 13. GET Aadhar document for an enquiry
+export const getAadharDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const enquiry = await Enquiry.findById(id);
+
+    if (!enquiry) {
+      return res.status(404).json({ message: "Enquiry not found" });
+    }
+
+    let documentSource = enquiry;
+    let aadharDoc = getStoredAadharDocument(documentSource);
+
+    if (!aadharDoc || !aadharDoc.data) {
+      const historyFilter = enquiry.clientId
+        ? { clientId: enquiry.clientId }
+        : { phone: enquiry.phone, aadhaar: enquiry.aadhaar };
+      const history = await Enquiry.find(historyFilter).sort({ createdAt: -1 });
+      documentSource = history.find((entry) => getStoredAadharDocument(entry)?.data);
+      aadharDoc = getStoredAadharDocument(documentSource);
+    }
+
+    const binaryData = getAadharBinaryData(aadharDoc);
+
+    if (!binaryData || binaryData.length === 0) {
+      return res.status(404).json({ message: "Aadhar document not found" });
+    }
+
+    // Set appropriate headers so PDFs/images can open in the browser.
+    res.setHeader('Content-Type', aadharDoc.fileType || aadharDoc.type || 'application/octet-stream');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${aadharDoc.fileName || aadharDoc.name || 'aadhar-document'}"`
+    );
+    res.setHeader('Content-Length', binaryData.length);
+    
+    res.send(binaryData);
+
+    console.log(`✅ Aadhar document downloaded for enquiry ${documentSource?._id || id} (${binaryData.length} bytes)`);
+  } catch (err) {
+    console.error("❌ Get Aadhar Document Error:", err.message);
     res.status(500).json({ message: err.message });
   }
 };

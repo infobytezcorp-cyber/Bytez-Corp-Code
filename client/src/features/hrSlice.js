@@ -625,7 +625,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
 // API Configuration
-const API_URL = import.meta.env.VITE_API_URL || 'https://bf80-183-83-148-50.ngrok-free.app';
+const API_URL = import.meta.env.VITE_API_URL || 'https://307c-2406-7400-ff03-198-9c9d-16ec-176f-1b18.ngrok-free.app';
 
 // export const HR_DEPT_CONFIG = {
 //   homecare: { label: "Home Care", icon: "🏠", color: "#0891b2", services: ["Home Nursing", "Caregiver Visit", "Physiotherapy", "Palliative Care", "Post-Surgery Care"] },

@@ -174,9 +174,10 @@
 // export default router;
 
 import express from 'express';
-import mongoose from 'mongoose';        // ✅ இதை add பண்ணுங்க
+import mongoose from 'mongoose';        
 import Task from '../models/Task.js';
 import Staff from '../models/Staff.js';
+import twilio from 'twilio';
 
 const router = express.Router();
 
@@ -220,12 +221,40 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// router.post("/:id/assign", async (req, res) => {
+//   try {
+//     const { staffId, durationHours, duration,
+//             elderName, phone, careType, clientId, stage } = req.body;
+
+//     if (!staffId) return res.status(400).json({ message: "staffId is required" });
+//     const task = new Task({
+//       elderName:    elderName || "Unknown",
+//       phone:        phone     || "N/A",
+//       careType:     careType  || "N/A",
+//       clientId:     clientId  || null,
+//       stage:        stage     || "Enrolled",
+//       taskStatus:   "In Progress",
+//       assignedTo:   staffId,
+//       durationDays: durationHours || null,
+//       duration:     duration      || null,
+//     });
+
+//     await task.save();
+
+//     const populated = await task.populate("assignedTo", "name role dept service");
+//     res.json(populated);
+//   } catch (err) {
+//     res.status(400).json({ message: err.message });
+//   }
+// });
+
 router.post("/:id/assign", async (req, res) => {
   try {
     const { staffId, durationHours, duration,
             elderName, phone, careType, clientId, stage } = req.body;
 
     if (!staffId) return res.status(400).json({ message: "staffId is required" });
+
     const task = new Task({
       elderName:    elderName || "Unknown",
       phone:        phone     || "N/A",
@@ -239,17 +268,46 @@ router.post("/:id/assign", async (req, res) => {
     });
 
     await task.save();
+    const populated = await task.populate("assignedTo", "name role dept service empId phone");
 
-    const populated = await task.populate("assignedTo", "name role dept service");
+    // ✅ Client SMS
+    await sendSMS(phone,
+      `Staff Assigned!\nName: ${populated.assignedTo?.name}\nID: ${populated.assignedTo?.empId}\nPhone: ${populated.assignedTo?.phone}\nService: ${careType}\nDuration: ${duration}\n- HCC Team`
+    );
+
+    // ✅ Staff SMS
+    await sendSMS(populated.assignedTo?.phone,
+      `New Task Assigned!\nPatient: ${elderName}\nID: ${clientId}\nPhone: ${phone}\nService: ${careType}\nDuration: ${duration}\n- HCC Team`
+    );
+
     res.json(populated);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 });
 
+// router.post("/:id/complete", async (req, res) => {
+//   try {
+   
+//     const task = await Task.findOne({ 
+//       clientId: req.params.id,
+//       taskStatus: "In Progress" 
+//     }).sort({ createdAt: -1 });
+
+//     if (!task) return res.status(404).json({ message: "No active task found" });
+
+//     task.taskStatus = "Completed";
+//     await task.save();
+
+//     const populated = await task.populate("assignedTo", "name role dept service");
+//     res.json(populated);
+//   } catch (err) {
+//     res.status(400).json({ message: err.message });
+//   }
+// });
+
 router.post("/:id/complete", async (req, res) => {
   try {
-    // ✅ clientId வச்சு latest In Progress task எடு
     const task = await Task.findOne({ 
       clientId: req.params.id,
       taskStatus: "In Progress" 
@@ -260,7 +318,18 @@ router.post("/:id/complete", async (req, res) => {
     task.taskStatus = "Completed";
     await task.save();
 
-    const populated = await task.populate("assignedTo", "name role dept service");
+    const populated = await task.populate("assignedTo", "name role dept service phone");
+
+    // ✅ Client SMS
+    await sendSMS(task.phone,
+      `Dear ${task.elderName}, your ${task.careType} service has been completed successfully. Thank you for choosing us! - HCC Team`
+    );
+
+    // ✅ Staff SMS
+    await sendSMS(populated.assignedTo?.phone,
+      `Dear ${populated.assignedTo?.name}, the task for patient ${task.elderName} (${task.careType}) has been marked as Completed. Great work! - HCC Team`
+    );
+
     res.json(populated);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -269,7 +338,7 @@ router.post("/:id/complete", async (req, res) => {
 
 router.post("/:id/reopen", async (req, res) => {
   try {
-    // ✅ clientId வச்சு latest Completed task எடு
+    
     const task = await Task.findOne({ 
       clientId: req.params.id,
       taskStatus: "Completed" 
@@ -323,4 +392,32 @@ router.put("/staff/:id", async (req, res) => {
   }
 });
 
+
+const getTwilioClient = () => {
+  return twilio(
+    process.env.TWILIO_SID,
+    process.env.TWILIO_AUTH
+  );
+};
+
+const sendSMS = async (to, message) => {
+  try {
+    if (!to) return;
+    
+    // Debug
+    console.log('TWILIO_SID:', process.env.TWILIO_SID);
+    
+    const phone = to.startsWith('+') ? to : `+91${to}`;
+    const client = getTwilioClient(); 
+    
+    await client.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE,
+      to: phone
+    });
+    console.log(`✅ SMS sent to ${phone}`);
+  } catch (err) {
+    console.error('❌ SMS error:', err.message);
+  }
+};
 export default router;
