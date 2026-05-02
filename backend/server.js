@@ -30,7 +30,12 @@ const server = http.createServer(app);
 // SOCKET.IO SETUP
 export const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: function (origin, callback) {
+      // Allow any origin (or list your allowed ones)
+      callback(null, true);
+    },
+    methods: ["GET", "POST"],
+    credentials: false,
   },
 });
 
@@ -45,7 +50,9 @@ io.on("connection", (socket) => {
 
 // CORS
 app.use(cors({
-  origin: "*",
+  origin: function (origin, callback) {
+    callback(null, true); // Allow all, or specify your origins
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
   credentials: false

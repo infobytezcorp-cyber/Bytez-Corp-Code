@@ -107,6 +107,7 @@ export const createCall = async (req, res) => {
     });
   }
 };
+
 export const assignCall = async (req, res) => {
   try {
     const { id } = req.params;
@@ -148,7 +149,7 @@ export const assignCall = async (req, res) => {
       lastCallTime: new Date()
     });
 
-    io.emit("callUpdated");
+    global.io?.emit("callUpdated");
 
     return res.status(200).json({
       success: true,
@@ -266,7 +267,9 @@ export const endCall = async (req, res) => {
     // Commit transaction AFTER everything
     await session.commitTransaction();
     session.endSession();
-    io.emit("callUpdated");
+
+    global.io?.emit("callUpdated");
+
     return res.status(200).json({
       success: true,
       data: call
@@ -354,7 +357,7 @@ export const callbackCall = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
-    io.emit("callUpdated");
+    global.io?.emit("callUpdated");
     return res.status(201).json({
       success: true,
       message: assignedAgent
@@ -474,5 +477,57 @@ export const getAllCalls = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+export const getMyCallLogs = async (req, res) => {
+  try {
+    const agent = await Agent.findOne({ linkedUser: req.user._id });
+
+    if (!agent) {
+      return res.status(404).json({ success: false, message: "Agent not found" });
+    }
+
+    const { from, to } = req.query;
+
+    const filter = { agent: agent._id };
+
+    if (from || to) {
+      filter.createdAt = {};
+      if (from) filter.createdAt.$gte = new Date(from);
+      if (to) {
+        const toDate = new Date(to);
+        toDate.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = toDate;
+      }
+    }
+
+    const calls = await Call.find(filter)
+      .populate("contact", "name phone")
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayCalls = calls.filter(c => new Date(c.createdAt) >= today);
+    const answered   = calls.filter(c => c.status === "completed");
+    const missed     = calls.filter(c => c.status === "missed");
+
+    res.status(200).json({
+      success: true,
+      data: {
+        calls,
+        stats: {
+          filtered: calls.length,
+          today: todayCalls.length,
+          answered: answered.length,
+          missed: missed.length
+        }
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

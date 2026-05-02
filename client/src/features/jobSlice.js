@@ -4,7 +4,7 @@ import axios from "axios";
 const API = import.meta.env.VITE_API_URL;
 
 
-// 🔥 FETCH JOB ENQUIRIES
+// FETCH JOB ENQUIRIES
 export const fetchJobs = createAsyncThunk(
   "jobs/fetchJobs",
   async () => {

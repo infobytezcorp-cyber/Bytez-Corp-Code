@@ -2,15 +2,15 @@ import { io } from "socket.io-client";
 
 const URL = import.meta.env.VITE_API_URL;
 
-let socket;
-
-if (!socket) {
-  socket = io(URL, {
-    transports: ["websocket"],
-    reconnection: true,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 1000,
-  });
-}
+const socket = io(URL, {
+  transports: ["polling", "websocket"],
+  reconnection: true,
+  withCredentials: false,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 1000,
+  extraHeaders: {
+    "ngrok-skip-browser-warning": "true",  // ← Add this
+  },
+});
 
 export default socket;

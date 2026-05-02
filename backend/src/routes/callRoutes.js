@@ -5,13 +5,16 @@ import {
   callbackCall,
   getAllCalls,
   assignCall,
-  exotelWebhook        
+  exotelWebhook,
+  getMyCallLogs
 } from "../controllers/callController.js";
+import { verifyToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.get("/", getAllCalls);
 router.post("/", createCall);
+router.get("/my-calls", verifyToken, getMyCallLogs);
 router.put("/:id/assign", assignCall);
 router.put("/:id/end", endCall);
 router.post("/:id/callback", callbackCall);

@@ -52,7 +52,7 @@ export const endCall = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const res = await API.put(`/calls/${id}/end`, {});
-      return res.data.data; // full updated call
+      return res.data.data;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || "Failed to end call"
@@ -76,6 +76,25 @@ export const assignCall = createAsyncThunk(
   }
 );
 
+// ───────── FETCH MY CALL LOGS (telecaller view) ─────────
+export const fetchMyCallLogs = createAsyncThunk(
+  "calls/fetchMyCallLogs",
+  async ({ from, to } = {}, { rejectWithValue }) => {
+    try {
+      const params = new URLSearchParams();
+      if (from) params.append("from", from);
+      if (to)   params.append("to", to);
+
+      const res = await API.get(`/calls/my-calls?${params.toString()}`);
+      return res.data.data; // { calls, stats }
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to fetch my call logs"
+      );
+    }
+  }
+);
+
 // ───────── SLICE ─────────
 const callSlice = createSlice({
   name: "calls",
@@ -83,6 +102,11 @@ const callSlice = createSlice({
     list: [],
     loading: false,
     error: null,
+
+    // ── My Call Logs (telecaller view) ──
+    myLogs: [],
+    myStats: { filtered: 0, today: 0, answered: 0, missed: 0 },
+    myLogsLoading: false,
   },
   reducers: {},
 
@@ -96,9 +120,7 @@ const callSlice = createSlice({
       })
       .addCase(fetchCalls.fulfilled, (state, action) => {
         state.loading = false;
-        state.list = Array.isArray(action.payload)
-          ? action.payload
-          : [];
+        state.list = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(fetchCalls.rejected, (state, action) => {
         state.loading = false;
@@ -113,7 +135,6 @@ const callSlice = createSlice({
       .addCase(callbackCall.fulfilled, (state, action) => {
         state.loading = false;
         const data = action.payload;
-
         if (data?.callbackCall) {
           state.list.unshift(data.callbackCall);
         }
@@ -129,15 +150,9 @@ const callSlice = createSlice({
       })
       .addCase(startCall.fulfilled, (state, action) => {
         state.loading = false;
-
         const updated = action.payload;
-        const index = state.list.findIndex(
-          (c) => c._id === updated._id
-        );
-
-        if (index !== -1) {
-          state.list[index] = updated;
-        }
+        const index = state.list.findIndex((c) => c._id === updated._id);
+        if (index !== -1) state.list[index] = updated;
       })
       .addCase(startCall.rejected, (state, action) => {
         state.loading = false;
@@ -150,15 +165,9 @@ const callSlice = createSlice({
       })
       .addCase(assignCall.fulfilled, (state, action) => {
         state.loading = false;
-
         const updated = action.payload;
-        const index = state.list.findIndex(
-          (c) => c._id === updated._id
-        );
-
-        if (index !== -1) {
-          state.list[index] = updated;
-        }
+        const index = state.list.findIndex((c) => c._id === updated._id);
+        if (index !== -1) state.list[index] = updated;
       })
       .addCase(assignCall.rejected, (state, action) => {
         state.loading = false;
@@ -171,18 +180,27 @@ const callSlice = createSlice({
       })
       .addCase(endCall.fulfilled, (state, action) => {
         state.loading = false;
-
         const updated = action.payload;
-        const index = state.list.findIndex(
-          (c) => c._id === updated._id
-        );
-
-        if (index !== -1) {
-          state.list[index] = updated;
-        }
+        const index = state.list.findIndex((c) => c._id === updated._id);
+        if (index !== -1) state.list[index] = updated;
       })
       .addCase(endCall.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload;
+      })
+
+      // ───────── FETCH MY CALL LOGS ─────────
+      .addCase(fetchMyCallLogs.pending, (state) => {
+        state.myLogsLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchMyCallLogs.fulfilled, (state, action) => {
+        state.myLogsLoading = false;
+        state.myLogs  = Array.isArray(action.payload.calls) ? action.payload.calls : [];
+        state.myStats = action.payload.stats ?? { filtered: 0, today: 0, answered: 0, missed: 0 };
+      })
+      .addCase(fetchMyCallLogs.rejected, (state, action) => {
+        state.myLogsLoading = false;
         state.error = action.payload;
       });
   },
