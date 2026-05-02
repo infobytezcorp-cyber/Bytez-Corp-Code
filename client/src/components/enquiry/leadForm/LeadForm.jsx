@@ -86,6 +86,7 @@ const LeadForm = () => {
   const buildStage1Payload = () => {
     const d = formData.s1;
     const svcObj = getServiceById(d.service);
+    const formattedPhone = d.phoneCountryCode ? `${d.phoneCountryCode}${d.phone}` : d.phone;
 
     if (d.aadhar && d.aadhar.replace(/\s/g, '').length !== 12) {
       throw new Error('Aadhar number must be exactly 12 digits');
@@ -94,7 +95,7 @@ const LeadForm = () => {
     return {
       elderName: d.pname,
       familyName: d.gname,
-      phone: d.phone,
+      phone: formattedPhone,
       aadhaar: d.aadhar ? d.aadhar.replace(/\s/g, '') : undefined,
       email: d.email?.trim() || '',
       careType: svcObj ? svcObj.label : '',
@@ -106,7 +107,7 @@ const LeadForm = () => {
         gender: d.gender || '',
         guardianName: d.gname || '',
         guardianRelationship: d.grel || '',
-        phone: d.phone || '',
+        phone: formattedPhone || '',
         whatsapp: d.whatsapp || '',
         alternatePhone: d.altphone || '',
         email: d.email?.trim() || '',
@@ -127,7 +128,7 @@ const LeadForm = () => {
           gender: d.gender || '',
           guardianName: d.gname || '',
           guardianRelationship: d.grel || '',
-          phone: d.phone || '',
+          phone: formattedPhone || '',
           whatsapp: d.whatsapp || '',
           alternatePhone: d.altphone || '',
           email: d.email?.trim() || '',
@@ -229,6 +230,7 @@ const LeadForm = () => {
   const buildStage3Payload = () => {
     const d = formData.s3;
     const notes = [];
+    const startDate = d.startdate || formData.s2.startdate || '';
 
     if (d.careplan) notes.push(`Care plan: ${d.careplan}`);
     if (d.visitfreq) notes.push(`Visit frequency: ${d.visitfreq}`);
@@ -242,7 +244,7 @@ const LeadForm = () => {
         stageName: 'Enrolled',
         savedAt: new Date().toISOString(),
         enrollmentDate: d.enrollmentDate || '',
-        startDate: d.startdate || '',
+        startDate,
         endDate: d.enddate || '',
         carePlan: d.careplan || '',
         visitFrequency: d.visitfreq || '',

@@ -355,7 +355,7 @@ router.put('/:id', async (req, res) => {
     const updatedEnquiry = await Enquiry.findByIdAndUpdate(
       req.params.id,
       { $set: updates },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!updatedEnquiry) {
@@ -420,7 +420,7 @@ router.post('/filter', async (req, res) => {
 // 8. ASSIGN task to staff
 router.post('/:id/assign', async (req, res) => {
   try {
-    const { staffId, durationHours } = req.body;
+    const { staffId, durationHours, duration } = req.body;
     
     const updatedEnquiry = await Enquiry.findByIdAndUpdate(
       req.params.id,
@@ -428,9 +428,10 @@ router.post('/:id/assign', async (req, res) => {
         assignedTo: staffId,
         taskStatus: 'In Progress',
         assignedAt: new Date(),
-        durationHours: durationHours
+        durationHours: durationHours,
+        duration: duration || ''
       },
-      { new: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!updatedEnquiry) {
@@ -454,7 +455,7 @@ router.post('/:id/complete', async (req, res) => {
         taskStatus: 'Completed',
         completedAt: new Date()
       },
-      { new: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!updatedEnquiry) {
@@ -478,7 +479,7 @@ router.post('/:id/reopen', async (req, res) => {
         taskStatus: 'In Progress',
         reopenedAt: new Date()
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!updatedEnquiry) {

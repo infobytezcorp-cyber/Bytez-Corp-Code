@@ -298,7 +298,7 @@
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import { CheckCircle, Loader, CalendarDays } from "lucide-react"; 
-import { updateEnquiryAssignment, assignTask, completeTask, reopenTask } from "../../features/taskManagementSlice";
+import { assignTask, completeTask, reopenTask } from "../../features/taskManagementSlice";
 import toast from "react-hot-toast";
 import axios from "axios";
 
@@ -321,24 +321,12 @@ export default function TaskManagementTable({
     setAssigningId(enquiry._id);
     try {
       const res = await dispatch(assignTask({ 
-      enquiryId:    enquiry._id, 
-      staffId, 
-      durationHours,
-      duration:     durationString,
-      elderName:    enquiry.elderName,
-      phone:        enquiry.phone,
-      careType:     enquiry.careType,
-      clientId:     enquiry.clientId,
-      stage:        enquiry.stage,
-    }));
-      if (res.error) throw new Error(res.payload || res.error.message || 'Assign failed');
-
-      dispatch(updateEnquiryAssignment({ 
-        enquiryId: enquiry._id, 
+        enquiryId:    enquiry._id, 
         staffId, 
-        duration: durationString, 
-        taskStatus: 'In Progress' 
+        durationHours,
+        duration:     durationString,
       }));
+      if (res.error) throw new Error(res.payload || res.error.message || 'Assign failed');
 
       toast.success("Task Assigned Successfully! 🚀");
       setIsModalOpen(false);
@@ -353,9 +341,8 @@ export default function TaskManagementTable({
 
   const handleMarkCompleted = async (enquiry) => {
     try {
-      const res = await dispatch(completeTask({ enquiryId: enquiry.clientId }));
+      const res = await dispatch(completeTask({ enquiryId: enquiry._id }));
       if (res.error) throw new Error(res.payload || res.error.message || 'Complete failed');
-      dispatch(updateEnquiryAssignment({ enquiryId: enquiry._id, taskStatus: 'Completed' }));
       toast.success("Task completed! Staff is now free.");
       if (typeof onTaskCompleted === 'function') onTaskCompleted();
     } catch (error) {
@@ -365,9 +352,8 @@ export default function TaskManagementTable({
 
   const handleReopen = async (enquiry) => {
     try {
-      const res = await dispatch(reopenTask({ enquiryId: enquiry.clientId }));
+      const res = await dispatch(reopenTask({ enquiryId: enquiry._id }));
       if (res.error) throw new Error(res.payload || res.error.message || 'Reopen failed');
-      dispatch(updateEnquiryAssignment({ enquiryId: enquiry._id, taskStatus: 'In Progress' }));
       toast.success('Task moved back to Active Tasks');
       if (typeof onTaskReopened === 'function') onTaskReopened();
     } catch (error) {

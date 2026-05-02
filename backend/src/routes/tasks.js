@@ -212,7 +212,7 @@ router.put("/:id", async (req, res) => {
   try {
     const updated = await Task.findByIdAndUpdate(
       req.params.id, req.body,
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).populate("assignedTo", "name role dept service");
     if (!updated) return res.status(404).json({ message: "Task not found" });
     res.json(updated);
@@ -383,7 +383,7 @@ router.put("/staff/:id", async (req, res) => {
   try {
     const updated = await Staff.findByIdAndUpdate(
       req.params.id, req.body,
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     if (!updated) return res.status(404).json({ message: "Staff not found" });
     res.json(updated);

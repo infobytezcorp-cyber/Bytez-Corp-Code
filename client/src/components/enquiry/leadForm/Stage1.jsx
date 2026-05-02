@@ -20,8 +20,20 @@ const Stage1 = ({
 }) => {
   const [errors, setErrors] = useState({});
 
+  const normalizeDigits = (value) => String(value).replace(/\D/g, '');
+
   const handleFieldChange = (field, value) => {
-    onUpdate('s1', { ...formData.s1, [field]: value });
+    let normalizedValue = value;
+
+    if (['phone', 'whatsapp', 'altphone'].includes(field)) {
+      normalizedValue = normalizeDigits(value).slice(0, 10);
+    }
+
+    if (field === 'aadhar') {
+      normalizedValue = normalizeDigits(value).slice(0, 12);
+    }
+
+    onUpdate('s1', { ...formData.s1, [field]: normalizedValue });
     if (errors[field]) {
       setErrors({ ...errors, [field]: null });
     }
@@ -40,7 +52,7 @@ const Stage1 = ({
     const d = formData.s1;
 
     if (!d.pname?.trim()) newErrors.pname = 'Patient Name is required';
-    if (!d.phone || d.phone.length < 10) newErrors.phone = 'Valid 10-digit phone required';
+    if (!d.phone || d.phone.length !== 10) newErrors.phone = 'Valid 10-digit phone required';
     if (!d.aadhar) newErrors.aadhar = 'Aadhar number is required';
     if (d.aadhar && d.aadhar.replace(/\s/g, '').length !== 12) newErrors.aadhar = 'Aadhar must be 12 digits';
     if (!d.source) newErrors.source = 'Lead Source is required';
@@ -150,14 +162,36 @@ const Stage1 = ({
             </FormGroup>
 
             <FormGroup label="Contact Number" required>
-              <FormInput
-                id="s1_phone"
-                type="tel"
-                placeholder="10-digit mobile"
-                value={formData.s1?.phone}
-                onChange={(e) => handleFieldChange('phone', e.target.value)}
-                required
-              />
+              <div className="flex gap-2">
+                <select
+                  id="s1_phoneCountryCode"
+                  value={formData.s1?.phoneCountryCode || '+91'}
+                  onChange={(e) => handleFieldChange('phoneCountryCode', e.target.value)}
+                  className=" rounded-xl border border-stone-300 bg-white text-sm text-stone-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                >
+                  {[
+                    { label: '+91' },
+                    { label: '+1' },
+                    { label: '+44' },
+                    { label: '+61' },
+                    { label: '+971' },
+                  ].map((code) => (
+                    <option key={code.value} value={code.value}>
+                      {code.label}
+                    </option>
+                  ))}
+                </select>
+                <FormInput
+                  id="s1_phone"
+                  type="tel"
+                  placeholder="10-digit mobile"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={formData.s1?.phone}
+                  onChange={(e) => handleFieldChange('phone', e.target.value)}
+                  required
+                />
+              </div>
               {errors.phone && <small className="text-rose-600">{errors.phone}</small>}
             </FormGroup>
 
@@ -166,6 +200,8 @@ const Stage1 = ({
                 id="s1_whatsapp"
                 type="tel"
                 placeholder="10-digit WhatsApp"
+                inputMode="numeric"
+                maxLength={10}
                 value={formData.s1?.whatsapp}
                 onChange={(e) => handleFieldChange('whatsapp', e.target.value)}
               />
@@ -176,7 +212,10 @@ const Stage1 = ({
                 id="s1_altphone"
                 type="tel"
                 placeholder="Optional"
+                inputMode="numeric"
+                maxLength={10}
                 value={formData.s1?.altphone}
+                
                 onChange={(e) => handleFieldChange('altphone', e.target.value)}
               />
             </FormGroup>
@@ -194,7 +233,9 @@ const Stage1 = ({
             <FormGroup label="Aadhar Number" required>
               <FormInput
                 id="s1_aadhar"
-                placeholder="12 digits"
+                placeholder="XXXX XXXX XXXX"
+                inputMode="numeric"
+                maxLength={12}
                 value={formData.s1?.aadhar}
                 onChange={(e) => handleFieldChange('aadhar', e.target.value)}
                 required

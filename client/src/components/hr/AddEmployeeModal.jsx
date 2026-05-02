@@ -11,6 +11,7 @@ export default function AddEmployeeModal() {
   const employees = useSelector((state) => state.hr.employees);
   const [formData, setFormData] = useState({
     name: "",
+    mobileCountryCode: "+91",
     mobile: "",
     dept: "homecare",
     service: "Home Nursing", // Default service, will be set properly on mount
@@ -28,6 +29,7 @@ export default function AddEmployeeModal() {
     shift: "Day (9am–6pm)",
     qual: "",
     emname: "",
+    emmobileCountryCode: "+91",
     emmobile: "",
     emrel: "Spouse",
     notes: "",
@@ -35,12 +37,29 @@ export default function AddEmployeeModal() {
 
   const [errors, setErrors] = useState({});
 
+  const normalizeDigits = (value) => String(value).replace(/\D/g, '');
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    let normalizedValue = value;
+
+    if (name === 'mobile' || name === 'emmobile') {
+      normalizedValue = normalizeDigits(value).slice(0, 10);
+    }
+
+    if (name === 'aadhaar') {
+      normalizedValue = normalizeDigits(value).slice(0, 12);
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: normalizedValue }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
+  };
+
+  const handleCountryCodeChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleDeptChange = (e) => {
@@ -56,24 +75,37 @@ export default function AddEmployeeModal() {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Name is required";
-    if (!formData.mobile.trim()) newErrors.mobile = "Mobile is required";
+    if (!formData.mobile.trim()) {
+      newErrors.mobile = "Mobile is required";
+    } else if (!/^\d{10}$/.test(formData.mobile)) {
+      newErrors.mobile = "Enter a valid 10-digit mobile number";
+    }
     if (!formData.role.trim()) newErrors.role = "Role is required";
     if (!formData.address.trim()) newErrors.address = "Address is required";
 
+    if (formData.emmobile.trim() && !/^\d{10}$/.test(formData.emmobile)) {
+      newErrors.emmobile = "Enter a valid 10-digit emergency contact number";
+    }
+
+    if (formData.aadhaar.trim() && !/^\d{12}$/.test(formData.aadhaar)) {
+      newErrors.aadhaar = "Enter a valid 12-digit Aadhaar number";
+    }
+
     // Check for duplicate mobile number
-    if (formData.mobile.trim()) {
-      const mobileExists = employees.some(
-        (emp) => emp.mobile === formData.mobile.trim()
-      );
+    if (/^\d{10}$/.test(formData.mobile)) {
+      const mobileExists = employees.some((emp) => {
+        const existing = String(emp.mobile || '').replace(/\D/g, '').slice(-10);
+        return existing === formData.mobile;
+      });
       if (mobileExists) {
         newErrors.mobile = "⚠️ Employee with this mobile number already exists!";
       }
     }
 
     // Check for duplicate aadhaar number
-    if (formData.aadhaar.trim()) {
+    if (/^\d{12}$/.test(formData.aadhaar)) {
       const aadhaarExists = employees.some(
-        (emp) => emp.aadhaar === formData.aadhaar.trim()
+        (emp) => String(emp.aadhaar || '').replace(/\D/g, '') === formData.aadhaar
       );
       if (aadhaarExists) {
         newErrors.aadhaar = "⚠️ Employee with this Aadhaar number already exists!";
@@ -102,7 +134,18 @@ export default function AddEmployeeModal() {
     };
 
     // Don't generate ID here - let backend do it
-    const newEmployee = { ...formData, status: "Present" };
+    const {
+      mobileCountryCode,
+      emmobileCountryCode,
+      ...restFormData
+    } = formData;
+
+    const newEmployee = {
+      ...restFormData,
+      mobile: formData.mobile ? `${mobileCountryCode}${formData.mobile}` : "",
+      emmobile: formData.emmobile ? `${emmobileCountryCode}${formData.emmobile}` : "",
+      status: "Present",
+    };
 
     try {
       // Dispatch and wait for the async thunk result
@@ -212,14 +255,36 @@ export default function AddEmployeeModal() {
               </div>
               <div>
                 <label className={labelClass}>Mobile Number *</label>
-                <input
-                  type="tel"
-                  name="mobile"
-                  value={formData.mobile}
-                  onChange={handleInputChange}
-                  placeholder="+91 XXXXX XXXXX"
-                  className={`${inputClass} ${errors.mobile ? "border-red-500" : ""}`}
-                />
+                <div className="flex gap-2">
+                  <select
+                    name="mobileCountryCode"
+                    value={formData.mobileCountryCode}
+                    onChange={handleCountryCodeChange}
+                    
+                  >
+                    {[
+                      { label: "+91" },
+                      { label: "+1" },
+                      { label: "+44" },
+                      { label: "+61" },
+                      { label: "+971" },
+                    ].map((code) => (
+                      <option key={code.value} value={code.value}>
+                        {code.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    name="mobile"
+                    value={formData.mobile}
+                    onChange={handleInputChange}
+                    placeholder="10 digit number"
+                    inputMode="numeric"
+                    maxLength={10}
+                    className={`${inputClass} flex-1 ${errors.mobile ? "border-red-500" : ""}`}
+                  />
+                </div>
                 {errors.mobile && (
                   <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>
                 )}
@@ -417,14 +482,39 @@ export default function AddEmployeeModal() {
               </div>
               <div>
                 <label className={labelClass}>Contact Mobile</label>
-                <input
-                  type="tel"
-                  name="emmobile"
-                  value={formData.emmobile}
-                  onChange={handleInputChange}
-                  placeholder="+91 XXXXX XXXXX"
-                  className={inputClass}
-                />
+                <div className="flex gap-2">
+                  <select
+                    name="emmobileCountryCode"
+                    value={formData.emmobileCountryCode}
+                    onChange={handleCountryCodeChange}
+                    className={`${inputClass} w-32`}
+                  >
+                    {[
+                      { label: "+91 India", value: "+91" },
+                      { label: "+1 USA", value: "+1" },
+                      { label: "+44 UK", value: "+44" },
+                      { label: "+61 AU", value: "+61" },
+                      { label: "+971 UAE", value: "+971" },
+                    ].map((code) => (
+                      <option key={code.value} value={code.value}>
+                        {code.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    name="emmobile"
+                    value={formData.emmobile}
+                    onChange={handleInputChange}
+                    placeholder="10 digit number"
+                    inputMode="numeric"
+                    maxLength={10}
+                    className={`${inputClass} flex-1 ${errors.emmobile ? "border-red-500" : ""}`}
+                  />
+                </div>
+                {errors.emmobile && (
+                  <p className="text-red-500 text-xs mt-1">{errors.emmobile}</p>
+                )}
               </div>
               <div>
                 <label className={labelClass}>Relation</label>

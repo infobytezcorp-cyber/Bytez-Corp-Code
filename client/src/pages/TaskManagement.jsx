@@ -196,8 +196,7 @@ export default function TaskManagement() {
       if (taskView === "unassigned") {
         viewMatch = !enq.assignedTo && enq.taskStatus !== "Completed";
       } else if (taskView === "active") {
-         
-        viewMatch = enq.assignedTo && enq.taskStatus !== "Completed";
+        viewMatch = enq.taskStatus === "In Progress";
       } else if (taskView === "completed") {
         viewMatch = enq.taskStatus === "Completed";
       }

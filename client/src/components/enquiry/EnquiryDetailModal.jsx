@@ -270,7 +270,7 @@ const EnquiryDetailModal = ({ enquiry, allEnquiries, onClose, onSave }) => {
 
         if (response?.status === 404) {
           setDocumentUnavailable(true);
-          alert('Indha enquiry-ku uploaded document save agala.');
+          alert('Document not found.');
           return;
         }
 
@@ -286,7 +286,7 @@ const EnquiryDetailModal = ({ enquiry, allEnquiries, onClose, onSave }) => {
     } catch (error) {
       documentWindow?.close();
       console.error('Failed to open document:', error);
-      alert('Document open panna mudiyala. Please try again.');
+      alert('Document not found.');
     } finally {
       setIsOpeningDocument(false);
     }

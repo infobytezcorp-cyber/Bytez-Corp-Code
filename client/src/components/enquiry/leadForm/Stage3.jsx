@@ -43,10 +43,11 @@ const Stage3 = ({ formData, onUpdate, onNext, isLoading, onSaveDraft }) => {
 
   const validate = () => {
     const newErrors = {};
+    const startDate = s3.startdate || s2.startdate || '';
 
     if (!s3.total || parseFloat(s3.total) <= 0) newErrors.total = 'Total amount is required';
     if (!s3.consent) newErrors.consent = 'Guardian Consent is required';
-    if (!s3.startdate) newErrors.startdate = 'Service Start Date is required';
+    if (!startDate) newErrors.startdate = 'Service Start Date is required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -101,7 +102,7 @@ const Stage3 = ({ formData, onUpdate, onNext, isLoading, onSaveDraft }) => {
               <FormInput
                 id="s3_startdate"
                 type="date"
-                value={s3.startdate || s2.startdate}
+                value={s3.startdate || s2.startdate || ''}
                 onChange={(e) => handleFieldChange('startdate', e.target.value)}
                 required
               />

@@ -58,7 +58,7 @@
 //     const updatedEmployee = await Employee.findOneAndUpdate(
 //       { id: req.params.id },
 //       req.body,
-//       { new: true }
+//       { returnDocument: "after" }
 //     );
 //     res.json(updatedEmployee);
 //   } catch (err) {
@@ -82,19 +82,52 @@ import express from 'express';
 const router = express.Router();
 import Employee from "../models/Hr&Staff.js";
 
+const normalizeMobile = (value = '') => {
+  const digits = String(value).replace(/\D/g, '');
+  return digits.replace(/^91/, '');
+};
+
+const normalizeAadhaar = (value = '') => {
+  return String(value).replace(/\D/g, '');
+};
+
+const regexDigits = (digits) => {
+  return digits.split('').join('\\D*');
+};
+
 // @route   POST /api/employees
 // @desc    Add new employee with Duplicate Check & Auto-ID
 router.post('/', async (req, res) => {
   try {
-    const { mobile, aadhaar, dept } = req.body;
+    const rawMobile = req.body.mobile || '';
+    const rawAadhaar = req.body.aadhaar || '';
+    const mobile = normalizeMobile(rawMobile);
+    const aadhaar = normalizeAadhaar(rawAadhaar);
+    const { dept } = req.body;
 
-    // 1. Check for duplicates in MongoDB
-    const existingEmployee = await Employee.findOne({
-      $or: [
+    const duplicateQueries = [];
+    if (mobile) {
+      const mobileRegex = new RegExp(`^\\D*${regexDigits(mobile)}\\D*$`);
+      duplicateQueries.push(
+        { mobile: rawMobile },
+        { mobile: `+91${mobile}` },
+        { mobile: `91${mobile}` },
         { mobile: mobile },
-        { aadhaar: aadhaar }
-      ]
-    });
+        { mobile: { $regex: mobileRegex } }
+      );
+    }
+    if (aadhaar) {
+      const aadhaarRegex = new RegExp(`^\\D*${regexDigits(aadhaar)}\\D*$`);
+      duplicateQueries.push(
+        { aadhaar: rawAadhaar },
+        { aadhaar: aadhaar },
+        { aadhaar: { $regex: aadhaarRegex } }
+      );
+    }
+
+    const existingEmployee = duplicateQueries.length > 0
+      ? await Employee.findOne({ $or: duplicateQueries })
+      : null;
 
     if (existingEmployee) {
       return res.status(400).json({ 

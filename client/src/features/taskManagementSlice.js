@@ -50,14 +50,12 @@ export const fetchStaffList = createAsyncThunk(
 
 export const assignTask = createAsyncThunk(
   'taskManagement/assignTask',
-  async ({ enquiryId, staffId, durationHours, duration,
-           elderName, phone, careType, clientId, stage }, { rejectWithValue }) => {
+  async ({ enquiryId, staffId, durationHours, duration }, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API}/api/tasks/${enquiryId}/assign`, { 
-        staffId, 
+      const response = await axios.post(`${API}/api/enquiries/${enquiryId}/assign`, {
+        staffId,
         durationHours,
         duration,
-        elderName, phone, careType, clientId, stage
       });
       return response.data;
     } catch (err) {
@@ -70,8 +68,7 @@ export const completeTask = createAsyncThunk(
   'taskManagement/completeTask',
   async ({ enquiryId }, { rejectWithValue }) => {
     try {
-      // ✅ enquiries → tasks
-      const response = await axios.post(`${API}/api/tasks/${enquiryId}/complete`);
+      const response = await axios.post(`${API}/api/enquiries/${enquiryId}/complete`);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -83,8 +80,7 @@ export const reopenTask = createAsyncThunk(
   'taskManagement/reopenTask',
   async ({ enquiryId }, { rejectWithValue }) => {
     try {
-      // ✅ enquiries → tasks
-      const response = await axios.post(`${API}/api/tasks/${enquiryId}/reopen`);
+      const response = await axios.post(`${API}/api/enquiries/${enquiryId}/reopen`);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
