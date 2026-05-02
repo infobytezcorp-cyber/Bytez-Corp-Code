@@ -396,13 +396,13 @@ export default function TimeLogsTab({ agents = [] }) {
                             <option value="">All dates</option>
 
                             {/* Other dates */}
-                            {/* {allDates
+                            {allDates
                                 .filter(d => d !== new Date().toISOString().split("T")[0])
                                 .map(d => (
                                     <option key={d} value={d}>
                                         {formatDisplayDate(d)}
                                     </option>
-                                ))} */}
+                                ))}
 
                         </select>
                     </div>

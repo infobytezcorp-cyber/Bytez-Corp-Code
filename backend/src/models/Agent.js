@@ -6,8 +6,8 @@ const agentSchema = new mongoose.Schema({
   name: String,
   status: {
     type: String,
-    enum: ["available", "busy", "break"],
-    default: "available"
+    enum: ["offline", "busy", "break", "available"],
+    default: "offline"
   },
   linkedUser: {
     type: mongoose.Schema.Types.ObjectId,

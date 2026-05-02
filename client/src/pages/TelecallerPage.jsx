@@ -218,8 +218,13 @@ export default function TelecallerPage() {
     dispatch(fetchMyAgent());
   };
 
+  // ✅ FIX 3: Correct API path — was "/logoutagent", should be "/agents/logoutagent"
   const handleLogout = async () => {
-    try { await API.post("/logoutagent"); } catch {}
+    try {
+      await API.post("/agents/logoutagent");
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
     localStorage.removeItem("token");
     dispatch(clearMyAgent());
     window.location.href = "/";
@@ -229,7 +234,6 @@ export default function TelecallerPage() {
   if (loading && !agent) return <LoadingState />;
   if (!agent)            return <NoAgentState />;
 
-  // ── Tab Content Map ──
   const tabContent = {
     dashboard: (
       <DashboardTab
@@ -249,7 +253,6 @@ export default function TelecallerPage() {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar */}
       <TelecallerSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -259,9 +262,7 @@ export default function TelecallerPage() {
         setCollapsed={setCollapsed}
       />
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-
         {/* Top Bar */}
         <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0 gap-4">
           <div>
@@ -288,7 +289,6 @@ export default function TelecallerPage() {
           </div>
         </div>
 
-        {/* Page Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {tabContent[activeTab]}
         </div>

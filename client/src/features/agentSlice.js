@@ -49,7 +49,7 @@ const agentSlice = createSlice({
         state.list = []; // error வந்தாலும் crash ஆகாது
       })
       .addCase(toggleBreak.fulfilled, (state, action) => {
-        // Backend response உடன் update பண்ணு — local toggle வேண்டாம்
+        // updateData.status = "available";
         const updated = action.payload;
         const idx = state.list.findIndex(a => a._id === updated._id);
         if (idx !== -1) state.list[idx] = updated;
