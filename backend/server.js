@@ -53,7 +53,7 @@ app.use(cors({
   origin: function (origin, callback) {
     callback(null, true); // Allow all, or specify your origins
   },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
   credentials: false
 }));

@@ -7,7 +7,8 @@ import {
   getMyAgent,
   linkUserToAgent,
   logoutAgent,
-  loginAgent   //  ADD THIS IMPORT
+  loginAgent,
+  forceLogoutAgent   //  ADD THIS IMPORT
 } from "../controllers/agentController.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
 
@@ -23,5 +24,7 @@ router.patch("/:id/link-user", linkUserToAgent);
 
 router.post("/loginagent", verifyToken, loginAgent);   //  NEW — agent login route
 router.post("/logoutagent", verifyToken, logoutAgent);
+router.patch("/:id/force-logout", forceLogoutAgent);   // ← ADD THIS
+
 
 export default router;

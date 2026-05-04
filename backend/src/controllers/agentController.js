@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Agent from "../models/Agent.js";
+import { io } from "../../server.js"; 
 
 // ─── Create agent ─────────────────────────────────────────────
 export const createAgent = async (req, res) => {
@@ -249,5 +250,69 @@ export const linkUserToAgent = async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const forceLogoutAgent = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid agent ID" });
+    }
+
+    const agent = await Agent.findById(id);
+
+    if (!agent) {
+      return res.status(404).json({ message: "Agent not found" });
+    }
+
+    if (agent.status === "offline") {
+      return res.status(400).json({ message: "Agent already offline" });
+    }
+
+    if (!agent.loginTime) {
+      return res.status(400).json({ message: "Agent has no active login session" });
+    }
+
+    const now = new Date();
+    const diff = Math.max(0, now - new Date(agent.loginTime));
+    const durationMinutes = Math.floor(diff / 1000 / 60);
+
+    //
+    agent.loginHistory.push({
+      loginTime: agent.loginTime,
+      logoutTime: now,
+      durationMinutes,
+    });
+
+    // If agent was on break, also push break log for the ongoing break
+    if (agent.status === "break" && agent.breakStartTime) {
+      const breakDurationMs = now - new Date(agent.breakStartTime);
+      const breakDurationMinutes = Math.max(0, Math.floor(breakDurationMs / 1000 / 60));
+
+      agent.breakLogs.push({
+        breakStart: agent.breakStartTime,
+        breakEnd: now,
+        durationMinutes: breakDurationMinutes,
+      });
+
+      agent.totalBreakMinutes = (agent.totalBreakMinutes || 0) + breakDurationMinutes;
+    }
+
+    // Reset fields to log out the agent
+    agent.loginTime = null;
+    agent.status = "offline";
+    agent.breakStartTime = null;
+
+    await agent.save();
+
+    // Emit socket event to notify all clients about the forced logout
+    io.emit("force-logout", { agentId: agent._id.toString() });
+
+    res.json({ success: true, data: agent }); // Return updated agent data for UI update
+  } catch (err) {
+    console.error("Force logout error:", err);
+    res.status(500).json({ message: "Force logout failed" });
   }
 };

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchAgents, toggleBreak } from "../features/agentSlice";
+import { fetchAgents, toggleBreak, forceLogout  } from "../features/agentSlice";
 import { fetchCalls, callbackCall } from "../features/callSlice";
 import Sidebar from "../components/dashboards/visitors/Sidebar";
 import AgentsPanel from "../components/calls/AgentsPanel";
@@ -10,10 +10,15 @@ import TimeLogsTab from "../components/calls/TimeLogsTab";
 import CallPanel from "../components/calls/CallPanel";
 import AgentBreakLogs from "../components/calls/AgentBreakLogs";
 
+import QuickAccess from "../components/calls/QuickAccess";
+import UserCallReport from "../components/calls/UserCallReport";
+import UserLoginReport from "../components/calls/UserLoginReport";
+import Forcelogoutconfirm from "../components/calls/Forcelogoutconfirm";
+
 const TABS = [
-  { id: "agents",   label: "Agents",       icon: "👤" },
-  { id: "missed",   label: "Missed Calls", icon: "📵" },
-  { id: "timelogs", label: "Time Logs",    icon: "⏱" },
+  { id: "agents", label: "Agents", icon: "👤" },
+  { id: "missed", label: "Missed Calls", icon: "📵" },
+  { id: "timelogs", label: "Time Logs", icon: "⏱" },
 ];
 
 /* ─── tiny keyframes injected once ─── */
@@ -27,25 +32,25 @@ const CSS = `
 
 /* ─── design tokens ─── */
 const T = {
-  bg:          "#F5F6FA",
-  card:        "#FFFFFF",
-  border:      "#E8EAF0",
+  bg: "#F5F6FA",
+  card: "#FFFFFF",
+  border: "#E8EAF0",
   borderLight: "#F0F1F6",
-  text:        "#1A1D2E",
-  muted:       "#8B90A7",
-  accent:      "#4F6EF7",   /* indigo-blue */
-  accentSoft:  "#EEF1FE",
-  green:       "#18B87C",
-  greenSoft:   "#E8F8F2",
-  amber:       "#F59E0B",
-  amberSoft:   "#FEF3C7",
-  red:         "#EF4444",
-  redSoft:     "#FEF2F2",
-  shadow:      "0 2px 12px rgba(26,29,46,0.07)",
+  text: "#1A1D2E",
+  muted: "#8B90A7",
+  accent: "#4F6EF7",   /* indigo-blue */
+  accentSoft: "#EEF1FE",
+  green: "#18B87C",
+  greenSoft: "#E8F8F2",
+  amber: "#F59E0B",
+  amberSoft: "#FEF3C7",
+  red: "#EF4444",
+  redSoft: "#FEF2F2",
+  shadow: "0 2px 12px rgba(26,29,46,0.07)",
   shadowHover: "0 6px 24px rgba(26,29,46,0.12)",
-  radius:      "18px",
-  radiusSm:    "12px",
-  font:        "'Outfit', sans-serif",
+  radius: "18px",
+  radiusSm: "12px",
+  font: "'Outfit', sans-serif",
 };
 
 /* ─── reusable pill badge ─── */
@@ -104,13 +109,13 @@ function StatCard({ label, value, icon, color, bg }) {
 
 /* ─── agent activity card ─── */
 function AgentCard({ agent }) {
-  const sessions   = agent.loginHistory || [];
+  const sessions = agent.loginHistory || [];
   const lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
-  const isOnline   = agent.status !== "offline";
-  const isBreak    = agent.status === "break";
+  const isOnline = agent.status !== "offline";
+  const isBreak = agent.status === "break";
 
   const statusLabel = isBreak ? "On Break" : isOnline ? "Live Online" : "Offline";
-  const dotColor    = isBreak ? T.amber : isOnline ? T.green : "#CBD5E1";
+  const dotColor = isBreak ? T.amber : isOnline ? T.green : "#CBD5E1";
   const accentColor = isBreak ? T.amber : isOnline ? T.green : T.muted;
 
   return (
@@ -176,14 +181,14 @@ function AgentCard({ agent }) {
             value={
               isOnline
                 ? <span style={{ color: T.accent, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ width: 4, height: 4, borderRadius: "50%", background: T.accent, display: "inline-block", animation: "bounce 1.4s infinite" }} />
-                    Working
-                  </span>
+                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: T.accent, display: "inline-block", animation: "bounce 1.4s infinite" }} />
+                  Working
+                </span>
                 : <span style={{ color: T.red, fontWeight: 700 }}>
-                    Out {lastSession.logoutTime
-                      ? new Date(lastSession.logoutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                      : "—"}
-                  </span>
+                  Out {lastSession.logoutTime
+                    ? new Date(lastSession.logoutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                    : "—"}
+                </span>
             }
           />
           <div style={{ height: 1, background: T.borderLight }} />
@@ -219,6 +224,7 @@ function InfoRow({ label, value }) {
 }
 
 /* ─── section heading ─── */
+
 function SectionHeading({ children }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
@@ -234,12 +240,15 @@ function SectionHeading({ children }) {
 export default function EnquiryCalls() {
   const dispatch = useDispatch();
   const { list: agents, loading: agentsLoading } = useSelector(s => s.agents);
-  const { list: calls,  loading: callsLoading  } = useSelector(s => s.calls);
+  const { list: calls, loading: callsLoading } = useSelector(s => s.calls);
 
   const [activeTab, setActiveTab] = useState("agents");
   const [selectedCall, setSelectedCall] = useState(null);
   const [agentsTabSelectedAgent, setAgentsTabSelectedAgent] = useState(null);
   const [agentsTabLogsDate, setAgentsTabLogsDate] = useState("");
+
+  const [openReport, setOpenReport] = useState(null);
+  const [logoutTarget, setLogoutTarget] = useState(null);
 
   const initialLoadDone = useRef(false);
   const isInitialLoading = (agentsLoading || callsLoading) && !initialLoadDone.current;
@@ -247,6 +256,7 @@ export default function EnquiryCalls() {
   useEffect(() => {
     Promise.all([dispatch(fetchAgents()), dispatch(fetchCalls())]).then(() => {
       initialLoadDone.current = true;
+      console.log(calls, agents, "Data synced");
     });
     const iv = setInterval(() => { dispatch(fetchAgents()); dispatch(fetchCalls()); }, 15000);
     return () => clearInterval(iv);
@@ -254,10 +264,18 @@ export default function EnquiryCalls() {
 
   const handleCallback = (id) => { dispatch(callbackCall(id)); setSelectedCall(null); };
 
-  const missedCalls     = calls.filter(c => c.status === "missed");
-  const activeCalls     = calls.filter(c => c.status === "assigned" || c.status === "in_progress");
+
+ /* force logout — toggleBreak */
+  const handleForceLogoutConfirm = () => {
+    if (!logoutTarget) return;
+    dispatch(forceLogout(logoutTarget._id)); // ← agentSlice add thunk
+    setLogoutTarget(null);
+  };
+
+  const missedCalls = calls.filter(c => c.status === "missed");
+  const activeCalls = calls.filter(c => c.status === "assigned" || c.status === "in_progress");
   const availableAgents = agents.filter(a => a.status === "available");
-  const onBreakAgents   = agents.filter(a => a.status === "break");
+  const onBreakAgents = agents.filter(a => a.status === "break");
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: T.bg, fontFamily: T.font }}>
@@ -311,10 +329,10 @@ export default function EnquiryCalls() {
             {/* ── Stat Cards ── */}
             {activeTab !== "timelogs" && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
-                <StatCard label="Total Agents"  value={agents.length}          icon="👥" color="#4F6EF7" bg="#EEF1FE" />
-                <StatCard label="Available"     value={availableAgents.length} icon="✅" color={T.green} bg={T.greenSoft} />
-                <StatCard label="On Break"      value={onBreakAgents.length}   icon="☕" color={T.amber} bg={T.amberSoft} />
-                <StatCard label="Missed Today"  value={missedCalls.length}     icon="📵" color={T.red}   bg={T.redSoft} />
+                <StatCard label="Total Agents" value={agents.length} icon="👥" color="#4F6EF7" bg="#EEF1FE" />
+                <StatCard label="Available" value={availableAgents.length} icon="✅" color={T.green} bg={T.greenSoft} />
+                <StatCard label="On Break" value={onBreakAgents.length} icon="☕" color={T.amber} bg={T.amberSoft} />
+                <StatCard label="Missed Today" value={missedCalls.length} icon="📵" color={T.red} bg={T.redSoft} />
               </div>
             )}
 
@@ -326,6 +344,11 @@ export default function EnquiryCalls() {
               </div>
             </div>
 
+
+            {/* ══ QUICK ACCESS ══ */}
+            <QuickAccess onOpen={setOpenReport} />
+
+
             {/* ── Tab Bar ── */}
             <div style={{
               display: "flex", gap: 3,
@@ -336,7 +359,7 @@ export default function EnquiryCalls() {
               boxShadow: T.shadow,
             }}>
               {TABS.map(tab => {
-                const isActive  = activeTab === tab.id;
+                const isActive = activeTab === tab.id;
                 const showBadge = tab.id === "missed" && missedCalls.length > 0;
                 return (
                   <button
@@ -386,10 +409,11 @@ export default function EnquiryCalls() {
                     availableCount={availableAgents.length}
                     onToggleBreak={(id) => dispatch(toggleBreak(id))}
                     onViewLogs={(agent) => { setAgentsTabSelectedAgent(agent); setAgentsTabLogsDate(""); }}
+                    onForceLogout={(agent) => setLogoutTarget(agent)} 
                   />
                 )}
                 {activeTab === "timelogs" && <TimeLogsTab agents={agents} />}
-                {activeTab === "missed"   && <MissedCallsPanel calls={missedCalls} onSelect={setSelectedCall} />}
+                {activeTab === "missed" && <MissedCallsPanel calls={missedCalls} onSelect={setSelectedCall} />}
               </div>
             </div>
 
@@ -415,6 +439,29 @@ export default function EnquiryCalls() {
           selectedDate={agentsTabLogsDate}
           onDateChange={setAgentsTabLogsDate}
           onClose={() => setAgentsTabSelectedAgent(null)}
+        />
+      )}
+
+      {/* ══ REPORT MODALS ══ */}
+      {openReport === "call" && (
+        <UserCallReport
+          agents={agents}
+          calls={calls}
+          onClose={() => setOpenReport(null)}
+        />
+      )}
+      {openReport === "login" && (
+        <UserLoginReport
+          agents={agents}
+          onClose={() => setOpenReport(null)}
+        />
+      )}
+
+      {logoutTarget && (
+        <Forcelogoutconfirm 
+          agent={logoutTarget}
+          onConfirm={handleForceLogoutConfirm}
+          onCancel={() => setLogoutTarget(null)}
         />
       )}
     </div>

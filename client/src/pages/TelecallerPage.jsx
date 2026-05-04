@@ -10,10 +10,10 @@ import {
 import socket from "../services/socket";
 import API from "../services/api";
 
-import DashboardTab    from "../components/telecallerscallpage/DashboardTab";
+import DashboardTab from "../components/telecallerscallpage/DashboardTab";
 import BreakHistoryTab from "../components/telecallerscallpage/BreakHistoryTab";
-import CallLogsTab     from "../components/telecallerscallpage/CallLogsTab";
-import MissedCallsTab  from "../components/telecallerscallpage/MissedCallsTab";
+import CallLogsTab from "../components/telecallerscallpage/CallLogsTab";
+import MissedCallsTab from "../components/telecallerscallpage/MissedCallsTab";
 import { formatTimeShort } from "../components/telecallerscallpage/Utilities";
 import { POLL_INTERVAL_MS } from "../components/telecallerscallpage/Utilities";
 
@@ -92,11 +92,10 @@ function TelecallerSidebar({ activeTab, setActiveTab, agent, onLogout, collapsed
             {!collapsed && (
               <div className="min-w-0">
                 <p className="text-white text-xs font-bold truncate">{agent.name}</p>
-                <p className={`text-[10px] font-semibold mt-0.5 ${
-                  agent.status === "available" ? "text-emerald-400"
-                  : agent.status === "busy"    ? "text-blue-400"
-                  : "text-amber-400"
-                }`}>{agent.status}</p>
+                <p className={`text-[10px] font-semibold mt-0.5 ${agent.status === "available" ? "text-emerald-400"
+                    : agent.status === "busy" ? "text-blue-400"
+                      : "text-amber-400"
+                  }`}>{agent.status}</p>
               </div>
             )}
           </div>
@@ -175,9 +174,9 @@ export default function TelecallerPage() {
   const { agent, activeCall, loading, breakLoading, callLoading, loginTime } =
     useSelector(s => s.myAgent);
 
-  const [activeTab, setActiveTab]   = useState("dashboard");
-  const [collapsed, setCollapsed]   = useState(false);
-  const [now, setNow]               = useState(new Date());
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [collapsed, setCollapsed] = useState(false);
+  const [now, setNow] = useState(new Date());
 
   // Clock tick
   useEffect(() => {
@@ -207,6 +206,22 @@ export default function TelecallerPage() {
     return () => socket.off("callUpdated", handler);
   }, [dispatch, agent?._id]);
 
+  // Admin force logout listener
+  useEffect(() => {
+    if (!agent?._id) return;
+
+    const handleForceLogout = (data) => {
+      if (data.agentId === agent._id) {
+        localStorage.removeItem("token");
+        dispatch(clearMyAgent());
+        window.location.href = "/";
+      }
+    };
+
+    socket.on("force-logout", handleForceLogout);
+    return () => socket.off("force-logout", handleForceLogout);
+  }, [agent?._id, dispatch]);
+
   const handleToggleBreak = () => {
     if (!agent?._id || agent?.status === "busy") return;
     dispatch(toggleMyBreak(agent._id)).then(() => dispatch(fetchMyAgent()));
@@ -232,7 +247,7 @@ export default function TelecallerPage() {
 
   // ── Guards ──
   if (loading && !agent) return <LoadingState />;
-  if (!agent)            return <NoAgentState />;
+  if (!agent) return <NoAgentState />;
 
   const tabContent = {
     dashboard: (
@@ -247,8 +262,8 @@ export default function TelecallerPage() {
       />
     ),
     history: <BreakHistoryTab agent={agent} />,
-    calls:   <CallLogsTab    agent={agent} />,
-    missed:  <MissedCallsTab agent={agent} />,
+    calls: <CallLogsTab agent={agent} />,
+    missed: <MissedCallsTab agent={agent} />,
   };
 
   return (

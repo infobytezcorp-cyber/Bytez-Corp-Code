@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 // CONSTANTS
 // ─────────────────────────────────────────────
 const BREAK_LIMIT_SECONDS = 3600; // 1 hour
-const TIMER_INTERVAL_MS   = 1000; // 1 second
+const TIMER_INTERVAL_MS = 1000; // 1 second
 
 // ─────────────────────────────────────────────
 // UTILITY — seconds → "1h 23m 45s"
@@ -50,8 +50,8 @@ function useBreakTimer(status, breakStartTime) {
 // ─────────────────────────────────────────────
 function getStatusBadgeClass(status, isOverLimit) {
   if (status === "available") return "bg-emerald-100 text-emerald-700 border-emerald-200";
-  if (status === "busy")      return "bg-red-100 text-red-700 border-red-200";
-  if (status === "break")     return isOverLimit
+  if (status === "busy") return "bg-red-100 text-red-700 border-red-200";
+  if (status === "break") return isOverLimit
     ? "bg-red-100 text-red-700 border-red-200"
     : "bg-yellow-100 text-yellow-700 border-yellow-200";
   return "bg-slate-100 text-slate-600 border-slate-200";
@@ -59,13 +59,13 @@ function getStatusBadgeClass(status, isOverLimit) {
 
 function getStatusDotClass(status, isOverLimit) {
   if (status === "available") return "bg-emerald-500";
-  if (status === "busy")      return "bg-red-500";
-  if (status === "break")     return isOverLimit ? "bg-red-500 animate-pulse" : "bg-yellow-500";
+  if (status === "busy") return "bg-red-500";
+  if (status === "break") return isOverLimit ? "bg-red-500 animate-pulse" : "bg-yellow-500";
   return "bg-slate-400";
 }
 
 function getBreakButtonClass(status, isOverLimit) {
-  if (status === "busy")  return "text-slate-300 border-slate-100 bg-slate-50 cursor-not-allowed";
+  if (status === "busy") return "text-slate-300 border-slate-100 bg-slate-50 cursor-not-allowed";
   if (status === "break") return isOverLimit
     ? "text-red-600 bg-red-50 border-red-200 hover:bg-red-100 animate-pulse"
     : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100";
@@ -73,7 +73,7 @@ function getBreakButtonClass(status, isOverLimit) {
 }
 
 function getBreakButtonLabel(status, isOverLimit) {
-  if (status === "busy")  return "On Call";
+  if (status === "busy") return "On Call";
   if (status === "break") return isOverLimit ? "⚠️ Resume Now" : "▶ Resume";
   return "⏸ Break";
 }
@@ -81,15 +81,15 @@ function getBreakButtonLabel(status, isOverLimit) {
 // ─────────────────────────────────────────────
 // AGENT ROW
 // ─────────────────────────────────────────────
-function AgentRow({ agent, onToggleBreak, onViewLogs }) {
-  const elapsed          = useBreakTimer(agent.status, agent.breakStartTime);
-  const isBreak          = agent.status === "break";
-  const isOverLimit      = elapsed > BREAK_LIMIT_SECONDS;
+function AgentRow({ agent, onToggleBreak, onViewLogs, onForceLogout }) {
+  const elapsed = useBreakTimer(agent.status, agent.breakStartTime);
+  const isBreak = agent.status === "break";
+  const isOverLimit = elapsed > BREAK_LIMIT_SECONDS;
 
   // Total = previous completed breaks + current live session
-  const previousSeconds  = (agent.totalBreakMinutes ?? 0) * 60;
-  const currentSeconds   = isBreak ? elapsed : 0;
-  const totalSeconds     = previousSeconds + currentSeconds;
+  const previousSeconds = (agent.totalBreakMinutes ?? 0) * 60;
+  const currentSeconds = isBreak ? elapsed : 0;
+  const totalSeconds = previousSeconds + currentSeconds;
   const isTotalOverLimit = totalSeconds > BREAK_LIMIT_SECONDS;
 
   return (
@@ -149,8 +149,15 @@ function AgentRow({ agent, onToggleBreak, onViewLogs }) {
 
       {/* Right — Buttons */}
       <div className="flex items-center gap-2 shrink-0">
+        {agent.status !== "offline" && (
+          <button
+            onClick={() => onForceLogout(agent)}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg border text-red-600 bg-red-50 border-red-200 hover:bg-red-100 transition-colors"
+          >
+            ⏻ Logout
+          </button>
+        )}
 
-        
         {/* View Logs button */}
         <button
           onClick={() => onViewLogs(agent)}
@@ -176,7 +183,7 @@ function AgentRow({ agent, onToggleBreak, onViewLogs }) {
 // ─────────────────────────────────────────────
 // AGENTS PANEL — main export
 // ─────────────────────────────────────────────
-export default function AgentsPanel({ agents = [], availableCount = 0, onToggleBreak, onViewLogs, onAssign  }) {
+export default function AgentsPanel({ agents = [], availableCount = 0, onToggleBreak, onViewLogs, onAssign, onForceLogout }) {
   const overLimitCount = agents.filter(a => {
     if (a.status !== "break" || !a.breakStartTime) return false;
     return (Date.now() - new Date(a.breakStartTime).getTime()) / 1000 > BREAK_LIMIT_SECONDS;
@@ -217,6 +224,7 @@ export default function AgentsPanel({ agents = [], availableCount = 0, onToggleB
               agent={agent}
               onToggleBreak={onToggleBreak}
               onViewLogs={onViewLogs}
+              onForceLogout={onForceLogout}
             />
           ))
         )}
