@@ -625,7 +625,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
 // API Configuration
-const API_URL = import.meta.env.VITE_API_URL || 'https://307c-2406-7400-ff03-198-9c9d-16ec-176f-1b18.ngrok-free.app';
+const API_URL = import.meta.env.VITE_API_URL || 'https://f541-2406-7400-ff03-8921-fdc4-8fb7-ba-bf24.ngrok-free.app';
 
 // export const HR_DEPT_CONFIG = {
 //   homecare: { label: "Home Care", icon: "🏠", color: "#0891b2", services: ["Home Nursing", "Caregiver Visit", "Physiotherapy", "Palliative Care", "Post-Surgery Care"] },
@@ -738,15 +738,28 @@ export const fetchEmployees = createAsyncThunk(
   "hr/fetchEmployees",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${API_URL}/api/hr`); // Ensure this matches your server.js route
+      console.log("🔄 Fetching employees from:", `${API_URL}/api/hr`);
+      const response = await axios.get(`${API_URL}/api/hr`);
+      console.log("✅ API Response received:", response.data);
+      
       // Normalize data: MongoDB '_id' can conflict with frontend 'id'
-      return response.data.map(emp => ({
+      const normalizedData = response.data.map(emp => ({
         ...emp,
-        id: emp.id || emp._id // If backend uses _id, map it to id
+        id: emp.id || emp._id
       }));
+      console.log("✅ Normalized employees:", normalizedData.length, "employees loaded");
+      return normalizedData;
     } catch (error) {
-      console.error("❌ API Fetch Error:", error.message);
-      return INITIAL_EMPLOYEES; 
+      console.error("❌ API Fetch Error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      // Return mock data as fallback
+      console.log("📦 Using fallback data:", INITIAL_EMPLOYEES.length, "employees");
+      return INITIAL_EMPLOYEES;
     }
   }
 );
@@ -793,10 +806,41 @@ export const deleteEmployeeAsync = createAsyncThunk(
   }
 );
 
+export const softDeleteEmployeeAsync = createAsyncThunk(
+  "hr/softDeleteEmployee",
+  async (id, { rejectWithValue }) => {
+    try {
+      // Use PATCH endpoint to deactivate employee (soft delete)
+      const response = await axios.patch(`${API_URL}/api/hr/${id}/deactivate`);
+      return id; 
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// 5. Fetch Ex-Employees (isActive = false)
+export const fetchExEmployees = createAsyncThunk(
+  "hr/fetchExEmployees",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`${API_URL}/api/hr/ex-employees/list`);
+      return response.data.map(emp => ({
+        ...emp,
+        id: emp.id || emp._id
+      }));
+    } catch (error) {
+      console.error("❌ Fetch Ex-Employees Error:", error.message);
+      return [];
+    }
+  }
+);
+
 const hrSlice = createSlice({
   name: "hr",
   initialState: {
     employees: [],
+    exEmployees: [],
     loading: false,
     error: null,
     activeDept: "all",
@@ -807,6 +851,7 @@ const hrSlice = createSlice({
     selectedEmployee: null,
     isAddModalOpen: false,
     isViewModalOpen: false,
+    viewMode: "active", // 'active' or 'ex'
   },
   reducers: {
     setActiveDept: (state, action) => {
@@ -822,6 +867,7 @@ const hrSlice = createSlice({
     closeAddModal: (state) => { state.isAddModalOpen = false; },
     openViewModal: (state) => { state.isViewModalOpen = true; },
     closeViewModal: (state) => { state.isViewModalOpen = false; },
+    setViewMode: (state, action) => { state.viewMode = action.payload; },
   },
   extraReducers: (builder) => {
     builder
@@ -831,7 +877,12 @@ const hrSlice = createSlice({
       })
       .addCase(fetchEmployees.fulfilled, (state, action) => {
         state.loading = false;
-        state.employees = action.payload; // Updates table with DB data
+        // If API returns empty but we have fallback data, use it
+        const employees = action.payload && action.payload.length > 0 
+          ? action.payload 
+          : INITIAL_EMPLOYEES;
+        state.employees = employees;
+        console.log("📊 Setting employees in state:", employees.length, "employees");
       })
       .addCase(fetchEmployees.rejected, (state) => {
         state.loading = false;
@@ -861,6 +912,21 @@ const hrSlice = createSlice({
       // Delete Employee
       .addCase(deleteEmployeeAsync.fulfilled, (state, action) => {
         state.employees = state.employees.filter(emp => emp.id !== action.payload);
+      })
+      .addCase(softDeleteEmployeeAsync.fulfilled, (state, action) => {
+        state.employees = state.employees.filter(emp => emp.id !== action.payload);
+      })
+      // Fetch Ex-Employees
+      .addCase(fetchExEmployees.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchExEmployees.fulfilled, (state, action) => {
+        state.loading = false;
+        state.exEmployees = action.payload;
+      })
+      .addCase(fetchExEmployees.rejected, (state) => {
+        state.loading = false;
+        state.exEmployees = [];
       });
   },
 });
@@ -876,6 +942,7 @@ export const {
   closeAddModal,
   openViewModal,
   closeViewModal,
+  setViewMode,
 } = hrSlice.actions;
 
 // Aliases for older component imports

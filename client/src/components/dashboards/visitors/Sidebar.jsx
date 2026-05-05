@@ -2,33 +2,98 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../../../utils/auth";
 import { useState } from "react";
 
+// const icons = {
+//   dashboard: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+//   clients:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>,
+//   projects:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
+//   tasks:     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
+//   leaves:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+//   enquiry:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+//   taskManagement: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M9 9h6M9 15h6M9 9v6M15 9v6"/></svg>,
+//   manager:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
+//   logout:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+//   collapse:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>,
+//   expand:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>,
+// };
+
+// const adminItems = [
+//   { label: "Dashboard", path: "/admin",    icon: icons.dashboard },//
+//   { label: "visitorpage", path: "/visitorpage",    icon: icons.visitor },//
+//   { label: "analytics",  path: "/analytics", icon: icons.analytics  },//
+//   { label: "Enquiry",  path: "/enquiry", icon: icons.enquiry },//
+//   { label: "HR&Staff",      path: "/staff",     icon: icons.clients    },
+//   { label: "Task Management",      path: "/tasks",     icon: icons.taskManagement    },
+//   { label: "settings",     path: "/settings",    icon: icons.settings },//
+//   { label: "Leaves",    path: "/leaves",   icon: icons.leaves },//
+
+
+// ];
+
+import {
+  analytics, collapseClose, collapseexpand, dashboard,
+  enquiry, leaves, logoutBtn, settings, Transaction, trend, visitor
+} from "../../../utils/icons";
+
+// ─── Telecaller Icon (Phone) ──────────────────────────────────
+const TelecallerIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+    strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12 19.79 19.79 0 0 1 1.9 3.37 2 2 0 0 1 3.89 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.99 5.99l1.07-1.07a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+  </svg>
+);
+
 const icons = {
-  dashboard: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
-  clients:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>,
-  projects:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
-  tasks:     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
-  leaves:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-  enquiry:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-  taskManagement: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M9 9h6M9 15h6M9 9v6M15 9v6"/></svg>,
-  manager:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
-  logout:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
-  collapse:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>,
-  expand:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>,
+  dashboard,
+  clients: Transaction,
+  projects: Transaction,
+  tasks: Transaction,
+  enquiry,
+  taskManagement: Transaction,
+  manager: trend,
+  logout: logoutBtn,
+  collapse: collapseClose,
+  expand: collapseexpand,
+  visitor,
+  analytics,
+  settings,
+  leaves,
+  telecaller: TelecallerIcon,
+  // dashboard: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+  // clients:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>,
+  // projects:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
+  // tasks:     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
+  // leaves:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  // enquiry:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  // taskManagement: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
+  // manager:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
+  // logout:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  // collapse:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>,
+  // expand:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>,
+
 };
 
 const adminItems = [
-  { label: "Dashboard", path: "/admin",    icon: icons.dashboard },
-  { label: "visitorpage", path: "/visitorpage",    icon: icons.visitor },
-  { label: "analytics",  path: "/analytics", icon: icons.analytics  },
-  { label: "Enquiry",  path: "/enquiry", icon: icons.enquiry },
-  { label: "HR&Staff",      path: "/staff",     icon: icons.clients    },
-  { label: "Task Management",      path: "/tasks",     icon: icons.taskManagement    },
-  { label: "settings",     path: "/settings",    icon: icons.settings },
-  { label: "Leaves",    path: "/leaves",   icon: icons.leaves },
-
+  // { label: "Dashboard",   path: "/admin",        icon: icons.dashboard  },
+  // { label: "Visitor",     path: "/visitorpage",  icon: icons.visitor    },
+  // { label: "Calls",       path: "/EnquiryCalls", icon: icons.leaves     },
+  // { label: "Analytics",   path: "/analytics",    icon: icons.analytics  },
+  // { label: "HR & Staff",  path: "/staff",        icon: icons.clients    },
+  // { label: "Task Management", path: "/tasks",    icon: icons.taskManagement},
+  // { label: "Enquiry",     path: "/enquiry",      icon: icons.enquiry    },
+  // { label: "Settings",    path: "/settings",     icon: icons.settings   },
+  { label: "Dashboard",   path: "/admin",        icon: icons.dashboard  },
+  { label: "Visitor",     path: "/visitorpage",  icon: icons.visitor    },
+  { label: "Calls",       path: "/EnquiryCalls", icon: icons.leaves     },
+  { label: "Analytics",   path: "/analytics",    icon: icons.analytics  },
+  { label: "HR & Staff",  path: "/staff",        icon: icons.clients    },
+  { label: "Task Management", path: "/tasks",    icon: icons.taskManagement},
+  { label: "Enquiry",     path: "/enquiry",      icon: icons.enquiry    },
+  { label: "WhatsApp Leads", path: "/whatsapp-leads", icon: icons.telecaller },
+  { label: "Settings",    path: "/settings",     icon: icons.settings   },
 
 ];
 
+// ─── NavItem ──────────────────────────────────────────────────
 function NavItem({ label, path, icon, isActive, onClick, collapsed }) {
   return (
     <li
@@ -59,15 +124,30 @@ function NavItem({ label, path, icon, isActive, onClick, collapsed }) {
   );
 }
 
+// ─── Telecaller Sub-Nav Items ─────────────────────────────────
+const telecallerSubItems = [
+  {
+    label: "Dashboard",
+    path: "/telecaller",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+        <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
+      </svg>
+    ),
+  },
+];
+
 export default function Sidebar() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate  = useNavigate();
+  const location  = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
-  const role  = localStorage.getItem("role");
-  const name  = localStorage.getItem("name")  || "Admin";
-  const email = localStorage.getItem("email") || "";
+  const role     = localStorage.getItem("role");
+  const name     = localStorage.getItem("name") || "Admin";
+  const email    = localStorage.getItem("email") || "";
   const initials = name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+
+  const isTelecallerSection = location.pathname === "/telecaller";
 
   return (
     <div
@@ -87,8 +167,6 @@ export default function Sidebar() {
             </div>
           </div>
         )}
-
-        {/* Collapse toggle button */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -108,7 +186,7 @@ export default function Sidebar() {
         <ul className="space-y-0.5">
 
           {/* ADMIN */}
-          {role === "admin" && adminItems.map((item) => (
+          {role === "admin" && adminItems.map(item => (
             <NavItem
               key={item.path}
               {...item}
@@ -121,20 +199,56 @@ export default function Sidebar() {
           {/* MANAGER */}
           {role === "manager" && (
             <>
-              <NavItem label="Manager Panel" path="/manager"  icon={icons.manager}  collapsed={collapsed} isActive={location.pathname === "/manager"}  onClick={() => navigate("/manager")} />
-              <NavItem label="Projects"      path="/projects" icon={icons.projects} collapsed={collapsed} isActive={location.pathname === "/projects"} onClick={() => navigate("/projects")} />
-              <NavItem label="Tasks"         path="/tasks"    icon={icons.tasks}    collapsed={collapsed} isActive={location.pathname === "/tasks"}    onClick={() => navigate("/tasks")} />
-              <NavItem label="Leaves"        path="/leaves"   icon={icons.leaves}   collapsed={collapsed} isActive={location.pathname === "/leaves"}   onClick={() => navigate("/leaves")} />
+              <NavItem label="Manager Panel" path="/manager"  icon={icons.manager} collapsed={collapsed} isActive={location.pathname === "/manager"}  onClick={() => navigate("/manager")} />
+              <NavItem label="Projects"      path="/projects" icon={icons.manager} collapsed={collapsed} isActive={location.pathname === "/projects"} onClick={() => navigate("/projects")} />
+              <NavItem label="Tasks"         path="/tasks"    icon={icons.leaves}  collapsed={collapsed} isActive={location.pathname === "/tasks"}    onClick={() => navigate("/tasks")} />
+              <NavItem label="Leaves"        path="/leaves"   icon={icons.leaves}  collapsed={collapsed} isActive={location.pathname === "/leaves"}   onClick={() => navigate("/leaves")} />
             </>
           )}
 
           {/* USER */}
           {role === "user" && (
-            <NavItem label="User Home" path="/user" icon={icons.clients} collapsed={collapsed} isActive={location.pathname === "/user"} onClick={() => navigate("/user")} />
+            <NavItem label="User Home" path="/user" icon={icons.dashboard} collapsed={collapsed} isActive={location.pathname === "/user"} onClick={() => navigate("/user")} />
+          )}
+
+          {/* TELECALLER ── main entry */}
+          {role === "telecaller" && (
+            <>
+              {/* Main telecaller link */}
+              <NavItem
+                label="Telecaller"
+                path="/telecaller"
+                icon={icons.telecaller}
+                collapsed={collapsed}
+                isActive={isTelecallerSection}
+                onClick={() => navigate("/telecaller")}
+              />
+
+              {/* Sub-section hint when on telecaller page & sidebar expanded */}
+              {isTelecallerSection && !collapsed && (
+                <li className="mt-1 mb-1">
+                  <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5">
+                    {[
+                      { label: "Dashboard",     emoji: "🏠" },
+                      { label: "Break History", emoji: "☕" },
+                      { label: "Call Logs",     emoji: "📞" },
+                      { label: "Missed Calls",  emoji: "❌" },
+                    ].map(s => (
+                      <div
+                        key={s.label}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-white/40 text-xs"
+                      >
+                        <span className="text-[11px]">{s.emoji}</span>
+                        <span>{s.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </li>
+              )}
+            </>
           )}
         </ul>
 
-        {/* Divider */}
         <div className="my-3 border-t border-white/7" />
 
         {/* Logout */}

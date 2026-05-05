@@ -196,6 +196,15 @@ export const StageProgressBar = ({ currentStage }) => {
   );
 };
 
+export function WhatsAppIconButton({ onClick }) {
+  return (
+    <button onClick={onClick} title="Send via WhatsApp" className="flex items-center gap-2 bg-green-600 text-white px-3 py-1 rounded">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      WhatsApp
+    </button>
+  );
+}
+
 export const CardHeader = ({ stage, title, subtitle }) => (
   <div className="border-b border-stone-200 bg-stone-50 px-5 py-5 sm:px-7">
     <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-stone-500">

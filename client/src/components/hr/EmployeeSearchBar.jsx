@@ -7,7 +7,7 @@ import {
   openAddModal,
 } from "../../features/hrSlice";
 
-export default function EmployeeSearchBar() {
+export default function EmployeeSearchBar({ view, setView }) {
   const dispatch = useDispatch();
   const { searchTerm, statusFilter, empTypeFilter } = useSelector(
     (state) => state.hr
@@ -15,6 +15,13 @@ export default function EmployeeSearchBar() {
 
   return (
     <div className="bg-white p-4 rounded-lg border border-gray-200">
+
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">HR & Staffs</h2>
+
+
+      </div>
+      
       <div className="flex gap-3 flex-wrap items-center mb-3">
         {/* Search */}
         <div className="flex-1 min-w-[300px] flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2">
@@ -29,7 +36,7 @@ export default function EmployeeSearchBar() {
         </div>
 
         {/* Status Filter */}
-        <select
+        {/* <select
           value={statusFilter}
           onChange={(e) => dispatch(setStatusFilter(e.target.value))}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none hover:border-blue-400"
@@ -39,7 +46,7 @@ export default function EmployeeSearchBar() {
           <option value="Absent">Absent</option>
           <option value="On Leave">On Leave</option>
           <option value="WFH">WFH</option>
-        </select>
+        </select> */}
 
         {/* Employment Type Filter */}
         <select

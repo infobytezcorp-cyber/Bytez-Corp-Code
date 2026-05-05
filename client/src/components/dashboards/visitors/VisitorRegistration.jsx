@@ -5,19 +5,17 @@ import { showToast } from "../../../utils/toast";
 import { User, Phone, FileText, ChevronRight, Building2, CheckCircle, KeyRound } from "lucide-react";
 
 const PURPOSES = [
-  "Consultation",
-  "Follow-up",
-  "Lab test",
-  "Pharmacy",
-  "Surgery prep",
-  "Emergency",
-  "Other",
+  "Visiting",
+  "Job",
+  "Enquiry",
+  "Others",
 ];
 
 export default function VisitorRegistration() {
   const navigate = useNavigate();
 
   const API = import.meta.env.VITE_API_URL;
+  axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
 
   const [form, setForm] = useState({
     name: "",

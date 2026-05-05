@@ -5,6 +5,8 @@ import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
 import { StageProgressBar, Toast, SuccessScreen } from './LeadFormComponents';
+import WhatsAppPrefillModal from '../WhatsAppPrefillModal';
+import { WhatsAppIconButton } from './LeadFormComponents';
 import { SRC_MAP, getServiceById } from './LeadFormConstants';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://307c-2406-7400-ff03-198-9c9d-16ec-176f-1b18.ngrok-free.app';
@@ -24,6 +26,59 @@ const LeadForm = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState(null);
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
+
+const openBusinessWhatsApp = async () => {
+    const SANDBOX_NUMBER = import.meta.env.VITE_WHATSAPP_BUSINESS || '14155238886';
+    const JOIN_CODE = import.meta.env.VITE_TWILIO_JOIN_CODE || 'join pictured-had';
+
+ 
+    const elWhatsapp = document.getElementById('s1_whatsapp');
+    const elPhone = document.getElementById('s1_phone');
+    const phoneRaw = (elWhatsapp?.value || elPhone?.value || '').replace(/\D/g, '');
+
+    const phoneToUse = phoneRaw || '';
+    const prefillName = (document.getElementById('s1_pname')?.value) || formData.s1?.pname || 'WhatsApp Lead';
+    const messageBody = JOIN_CODE; 
+
+    try {
+      if (phoneToUse) {
+        
+        const payload = {
+          elderName: prefillName,
+          phone: phoneToUse,
+          notes: `Initiated via WhatsApp Sandbox button`,
+          lead: 'WhatsApp',
+          stage: 'New Enquiry',
+          timeline: [{ event: 'Created via WhatsApp button', date: new Date().toISOString() }]
+        };
+
+        await fetch(`${API_URL}/api/enquiries`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+          body: JSON.stringify(payload),
+        });
+
+        // Twilio Outbound Invite (Optional)
+        try {
+          await fetch(`${API_URL}/api/twilio/send-invite`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+            body: JSON.stringify({ phone: phoneToUse, message: `Hi ${prefillName}, welcome!` }),
+          });
+        } catch (err) {
+          console.warn('send-invite failed', err);
+        }
+      }
+    } catch (err) {
+      console.error('WhatsApp button error', err);
+    } finally {
+      
+      const waUrl = `https://wa.me/${SANDBOX_NUMBER}?text=${encodeURIComponent(messageBody)}`;
+      window.open(waUrl, '_blank');
+      setToast({ message: 'WhatsApp Sandbox chat opened', isError: false });
+    }
+  };
 
   // Update form data for a specific stage
   const handleUpdateFormData = useCallback((stageKey, data) => {
@@ -527,6 +582,9 @@ const LeadForm = () => {
             <div className="mt-1 text-[11px] font-medium uppercase tracking-[0.22em] text-stone-500">
               Lead Entry Form
             </div>
+          </div>
+          <div className="ml-auto">
+            <WhatsAppIconButton onClick={openBusinessWhatsApp} />
           </div>
         </div>
 

@@ -7,59 +7,33 @@ import NormalEnquiry from "../components/dashboards/jonenquiry/NormalEnquiry";
 import ElderCare from "../components/dashboards/jonenquiry/ElderCare";
 import HomeCare from "../components/dashboards/jonenquiry/HomeCare";
 import ModulePage from "./ModulesPage";
+import { eldercare, enquiry, homecare, job, visitors_logs } from "../utils/icons";
 
 const TABS = [
   {
     key: "visitors",
     label: "Visitor Log",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
+    icon: visitors_logs,
   },
   {
     key: "jobs",
     label: "Job Enquiries",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <rect x="2" y="7" width="20" height="14" rx="2" />
-        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-      </svg>
-    ),
+    icon: job,
   },
   {
     key: "clients",
     label: "Normal Enquiry",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-    ),
+    icon: enquiry,
   },
   {
     key: "eldercare",
     label: "Elder Care",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <path d="M8 7a4 4 0 1 1 8 0c0 2.5-4 6-4 6s-4-3.5-4-6z" />
-        <circle cx="12" cy="7" r="1.5" />
-        <path d="M6 21h12" />
-      </svg>
-    ),
+    icon: eldercare
   },
   {
     key: "homecare",
     label: "Home Care",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <path d="M3 10l9-7 9 7" />
-        <path d="M9 21V12h6v9" />
-      </svg>
-    ),
+    icon: homecare
   }
 
 ];
@@ -69,14 +43,12 @@ const TAB_ACTIVE_STYLES = {
   jobs: "border-green-600 text-green-600",
   clients: "border-orange-500 text-orange-500",
   eldercare: "border-yellow-500 text-yellow-500",
-  homecare: "border-purple-500 text-perple-500"
+  homecare: "border-black-500 text-black-500"
 };
 
 export default function VisitorPage() {
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState("visitors");
-
-
 
   return (
     <div className="flex h-screen bg-gray-100">

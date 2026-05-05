@@ -11,6 +11,6 @@
 //     await sequelize.authenticate();
 //     console.log('✅ MySQL Connected Successfully!');
 //   } catch (error) {
-//     console.error('❌ MySQL Connection Error:', error);
+//     console.error('❌ MySQL Connection Error:', error);  
 //   }
 // };

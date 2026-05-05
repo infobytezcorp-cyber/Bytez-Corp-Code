@@ -4,6 +4,10 @@ import jobReducer  from "../features/jobSlice";
 import visitorReducer from "../features/visitorEnquirySlice";
 import hrReducer from "../features/hrSlice";
 import taskManagementReducer from "../features/taskManagementSlice";
+import callReducer from "../features/callSlice";
+import agentReducer from "../features/agentSlice";
+import myAgentReducer from "../features/myAgentSlice";
+import callsReducer from "../features/callSlice";
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +16,10 @@ export const store = configureStore({
     visitorsEnquiry: visitorReducer,
     hr: hrReducer,
     taskManagement: taskManagementReducer,
+    calls: callReducer,
+    agents: agentReducer,
+    myAgent: myAgentReducer,
+     calls: callsReducer,
   }
 });
 

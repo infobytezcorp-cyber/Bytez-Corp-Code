@@ -18,16 +18,16 @@ export default function HRKPIDashboard({ allEmployees }) {
       : 0;
 
   const KPICard = ({ icon, label, value, sublabel, color }) => (
-    <div className={`bg-white rounded-lg border-l-4 p-4`} style={{ borderColor: color }}>
+    <div className={`bg-white rounded-lg border-l-4 p-3`} style={{ borderColor: color }}>
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-sm text-gray-500 font-semibold">{label}</p>
-          <p className="text-3xl font-bold mt-2" style={{ color }}>
+          <p className="text-2xl font-bold mt-1" style={{ color }}>
             {value}
           </p>
-          <p className="text-xs text-gray-400 mt-1">{sublabel}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{sublabel}</p>
         </div>
-        <span className="text-3xl ml-2 flex-shrink-0">{icon}</span>
+        <span className="text-2xl ml-2 flex-shrink-0">{icon}</span>
       </div>
     </div>
   );

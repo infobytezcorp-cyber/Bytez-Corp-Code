@@ -248,7 +248,7 @@ export default function AddEmployeeModal() {
                 >
                   {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(
                     (bg) => (
-                      <option key={bg}>{bg}</option>
+                      <option key={bg} value={bg}>{bg}</option>
                     )
                   )}
                 </select>
@@ -263,11 +263,11 @@ export default function AddEmployeeModal() {
                     
                   >
                     {[
-                      { label: "+91" },
-                      { label: "+1" },
-                      { label: "+44" },
-                      { label: "+61" },
-                      { label: "+971" },
+                      { label: "+91 India", value: "+91" },
+                      { label: "+1 USA", value: "+1" },
+                      { label: "+44 UK", value: "+44" },
+                      { label: "+61 AU", value: "+61" },
+                      { label: "+971 UAE", value: "+971" },
                     ].map((code) => (
                       <option key={code.value} value={code.value}>
                         {code.label}
@@ -372,7 +372,7 @@ export default function AddEmployeeModal() {
                   className={selectClass}
                 >
                   {HR_DEPT_CONFIG[formData.dept]?.services?.map((service) => (
-                    <option key={service}>{service}</option>
+                    <option key={service} value={service}>{service}</option>
                   )) || []}
                 </select>
               </div>
@@ -415,7 +415,7 @@ export default function AddEmployeeModal() {
                     "Daily Wage",
                     "Internship",
                   ].map((type) => (
-                    <option key={type}>{type}</option>
+                    <option key={type} value={type}>{type}</option>
                   ))}
                 </select>
               </div>
@@ -434,7 +434,7 @@ export default function AddEmployeeModal() {
                     "Night (10pm–6am)",
                     "Flexible",
                   ].map((shift) => (
-                    <option key={shift}>{shift}</option>
+                    <option key={shift} value={shift}>{shift}</option>
                   ))}
                 </select>
               </div>
@@ -483,11 +483,11 @@ export default function AddEmployeeModal() {
               <div>
                 <label className={labelClass}>Contact Mobile</label>
                 <div className="flex gap-2">
-                  <select
-                    name="emmobileCountryCode"
-                    value={formData.emmobileCountryCode}
+                                    <select
+                    name="mobileCountryCode"
+                    value={formData.mobileCountryCode}
                     onChange={handleCountryCodeChange}
-                    className={`${inputClass} w-32`}
+                    
                   >
                     {[
                       { label: "+91 India", value: "+91" },
@@ -501,7 +501,25 @@ export default function AddEmployeeModal() {
                       </option>
                     ))}
                   </select>
-                  <input
+                  {/* <select
+                    name="emmobileCountryCode"
+                    value={formData.emmobileCountryCode}
+                    onChange={handleCountryCodeChange}
+                    className={`${inputClass} `}
+                  >
+                    {[
+                      { label: "+91 India", value: "+91" },
+                      { label: "+1 USA", value: "+1" },
+                      { label: "+44 UK", value: "+44" },
+                      { label: "+61 AU", value: "+61" },
+                      { label: "+971 UAE", value: "+971" },
+                    ].map((code) => (
+                      <option key={code.value} value={code.value}>
+                        {code.label}
+                      </option>
+                    ))}
+                  </select> */}
+                  {/* <input
                     type="tel"
                     name="emmobile"
                     value={formData.emmobile}
@@ -509,11 +527,21 @@ export default function AddEmployeeModal() {
                     placeholder="10 digit number"
                     inputMode="numeric"
                     maxLength={10}
-                    className={`${inputClass} flex-1 ${errors.emmobile ? "border-red-500" : ""}`}
+                    className={`${inputClass} flex-[-3] ${errors.emmobile ? "border-red-500" : ""}`}
+                  /> */}
+                                    <input
+                    type="tel"
+                    name="mobile"
+                    value={formData.mobile}
+                    onChange={handleInputChange}
+                    placeholder="10 digit number"
+                    inputMode="numeric"
+                    maxLength={10}
+                    className={`${inputClass} flex-1 ${errors.mobile ? "border-red-500" : ""}`}
                   />
                 </div>
                 {errors.emmobile && (
-                  <p className="text-red-500 text-xs mt-1">{errors.emmobile}</p>
+                  <p className="text-red-500 text-xs mt-">{errors.emmobile}</p>
                 )}
               </div>
               <div>
@@ -531,7 +559,7 @@ export default function AddEmployeeModal() {
                     "Friend",
                     "Other",
                   ].map((rel) => (
-                    <option key={rel}>{rel}</option>
+                    <option key={rel} value={rel}>{rel}</option>
                   ))}
                 </select>
               </div>

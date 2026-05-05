@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import {
   setActiveDept,
   setActiveService,
@@ -24,6 +25,7 @@ import Sidebar from "../components/dashboards/Sidebar";
 
 export default function StaffPage() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   useEffect(() => {
     dispatch(fetchEmployees());
@@ -69,16 +71,24 @@ export default function StaffPage() {
                 Manage employees across all departments
               </p>
             </div>
-            <button
-              onClick={() => dispatch(openAddModal())}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition"
-            >
-              + Add Employee
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => navigate("/ex-employees")}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition"
+              >
+                👤 Ex-Employees
+              </button>
+              <button
+                onClick={() => dispatch(openAddModal())}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition"
+              >
+                + Add Employee
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* KPI Dashboard */}
           <HRKPIDashboard employees={filteredEmployees} allEmployees={employees} />
 

@@ -374,15 +374,44 @@ export const assignEnquiry = async (req, res) => {
   }
 };
 
-// ✅ 12. GET enquiries count by stage (for dashboard)
+// ✅ 12. GET enquiries count by stage or lead (for dashboard)
 export const getEnquiriesCountByStage = async (req, res) => {
   try {
+    const groupBy = req.query.groupBy === "lead" ? "$lead" : "$stage";
+    const { fromDate, toDate, stage, taskStatus } = req.query;
+    const match = {};
+
+    if (stage) match.stage = stage;
+    if (taskStatus) match.taskStatus = taskStatus;
+
+    if (fromDate || toDate) {
+      match.createdAt = {};
+
+      if (fromDate) {
+        const from = new Date(fromDate);
+        from.setHours(0, 0, 0, 0);
+        match.createdAt.$gte = from;
+      }
+
+      if (toDate) {
+        const to = new Date(toDate);
+        to.setHours(23, 59, 59, 999);
+        match.createdAt.$lte = to;
+      }
+    }
+
     const counts = await Enquiry.aggregate([
       {
+        $match: match,
+      },
+      {
         $group: {
-          _id: "$stage",
+          _id: groupBy,
           count: { $sum: 1 },
         },
+      },
+      {
+        $sort: { count: -1 },
       },
     ]);
 

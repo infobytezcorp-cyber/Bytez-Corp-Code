@@ -307,6 +307,7 @@ axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function TaskManagementTable({ 
   enquiries = [], 
+  allEnquiries = enquiries,
   staffList = [], 
   taskView,           
   onTaskCompleted, 
@@ -333,7 +334,7 @@ export default function TaskManagementTable({
       setSelectedEnquiry(null);
     } catch (error) {
       console.error('Assign error:', error);
-      toast.error("Failed to assign staff");
+      toast.error(error.message || "Failed to assign staff");
     } finally {
       setAssigningId(null);
     }
@@ -525,7 +526,7 @@ export default function TaskManagementTable({
         <StaffAssignmentModal
           enquiry={selectedEnquiry}
           staffList={staffList}
-          enquiries={enquiries} 
+          enquiries={allEnquiries} 
           onAssign={handleAssignStaff}
           onClose={closeModal}
           isLoading={assigningId === selectedEnquiry._id}

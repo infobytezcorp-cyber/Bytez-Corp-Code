@@ -6,8 +6,12 @@ import { fileURLToPath } from "url";
 
 import express from "express";
 import cors from "cors";
+import http from "http";
+import { Server } from "socket.io";
 
 import connectDB from "./src/config/db.js";
+
+
 import authRoutes from "./src/routes/authRoutes.js";
 import protectedRoutes from "./src/routes/protectedRoutes.js";
 import otpRoutes from "./src/routes/otpRoutes.js";
@@ -15,25 +19,56 @@ import userRoutes from "./src/routes/userRoutes.js";
 import visitorRoutes from "./src/routes/visitorRoutes.js";
 import detailsRoutes from "./src/routes/detailsRoutes.js";
 import enquiryRoutes from "./src/routes/enquiryRoutes.js";
+import callRoutes from "./src/routes/callRoutes.js";
+import agentRoutes from "./src/routes/agentRoutes.js";
 import hrRoutes from "./src/routes/hrRoutes.js";
 import tasksRoutes from "./src/routes/tasks.js";
+import twilioRoutes from './src/routes/twilioRoutes.js';
+import whatsAppLeadRoutes from './src/routes/whatsAppLeadRoutes.js';
 
-connectDB();
 
 const app = express();
 
-// ✅ CORS
+// CREATE HTTP SERVER (IMPORTANT)
+const server = http.createServer(app);
+
+// SOCKET.IO SETUP
+export const io = new Server(server, {
+  cors: {
+    origin: function (origin, callback) {
+      // Allow any origin (or list your allowed ones)
+      callback(null, true);
+    },
+    methods: ["GET", "POST"],
+    credentials: false,
+  },
+});
+
+// 🔹 Optional: connection log
+io.on("connection", (socket) => {
+  console.log("⚡ Client connected:", socket.id);
+
+  socket.on("disconnect", (reason) => {
+    console.log("❌ Client disconnected:", socket.id, reason);
+  });
+});
+
+// CORS
 app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  origin: function (origin, callback) {
+    callback(null, true); // Allow all, or specify your origins
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
   credentials: false
 }));
 
 app.options(/.*/, cors());
 app.use(express.json());
+// Parse URL-encoded bodies (required for Twilio webhook and form posts)
+app.use(express.urlencoded({ extended: false }));
 
-// ✅ API Routes
+// --- Routes ---
 app.use("/api/auth", authRoutes);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/users", userRoutes);
@@ -44,24 +79,38 @@ app.use("/api/enquiries", enquiryRoutes);
 app.use("/api/hr", hrRoutes);
 app.use("/api/tasks", tasksRoutes);
 app.use("/api/staff", tasksRoutes); 
-// 🔥 FIXED STATIC PATH (IMPORTANT)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+app.use("/api/calls", callRoutes);
+app.use("/api/agents", agentRoutes);
+app.use('/api/twilio', twilioRoutes);
+app.use('/api/whatsappleads', whatsAppLeadRoutes);
 
-// 👉 go from backend → project root → client/dist
-const distPath = path.join(__dirname, "../client/dist");
+// --- Server Start Logic ---
+const startServer = async () => {
+  try {
+    // MongoDB (optional)
+    try {
+      await connectDB();
+      console.log("MongoDB connected successfully");
+    } catch (mongoError) {
+      console.warn("MongoDB connection failed (optional):", mongoError.message);
+      console.log("Using SQLite fallback");
+    }
 
-// ✅ serve frontend
-app.use(express.static(distPath));
+    // SQLite (required)
+    // await connectSQLiteDB();
+    // console.log("SQLite connected successfully");
 
-// ✅ visitor route
-app.get("/visitor", (req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
-});
+    const port = process.env.PORT || 8000;
 
-// ✅ server start
-const port = process.env.PORT || 8000;
+    // START SERVER (IMPORTANT)
+    server.listen(port, "0.0.0.0", () => {
+      console.log(`Server running on port ${port}`);
+    });
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Server running on port ${port}`);
-});
+  } catch (error) {
+    console.error("Failed to start the server:", error.message);
+    process.exit(1);
+  }
+};
+
+startServer();

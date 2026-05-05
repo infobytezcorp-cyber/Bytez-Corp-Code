@@ -29,6 +29,12 @@ const EmployeeSchema = new mongoose.Schema({
   emmobile: { type: String },
   emrel: { type: String },
   notes: { type: String },
+
+  // Status tracking
+  status: { type: String, default: 'Present' },
+  isActive: { type: Boolean, default: true },
+  deactivatedAt: { type: Date }
+  
 }, { timestamps: true });
 
 export default mongoose.models.Employee || mongoose.model('Employee', EmployeeSchema);

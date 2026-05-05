@@ -14,6 +14,8 @@ import JobRegistorForm from "./components/dashboards/visitors/JobRegistorForm";
 import Enquiry from "./pages/Enquiry";
 import CallCenter from "./pages/CallCenter";
 import StaffPage from "./pages/StaffPage";
+import ExEmployeePage from "./pages/ExEmployeePage";
+import WhatsAppLeads from "./pages/WhatsAppLeads";
 import TaskManagement from "./pages/TaskManagement";
 // import VisitorRegistration from "./components/dashboards/VisitorRegistration";
 // import Enquiry from "./pages/Enquiry";
@@ -21,7 +23,25 @@ import ModulesPage from "./pages/ModulesPage";
 import VisitorPage from "./pages/VisitorPage";
 
 
+// import VisitorRegistration from "./components/dashboards/VisitorRegistration";
+// import Enquiry from "./pages/Enquiry";
+// import ModulesPage from "./pages/ModulesPage";
+// import VisitorPage from "./pages/VisitorPage";
+import EnquiryCalls from "./pages/EnquiryCalls";
+import TelecallerPage from "./pages/TelecallerPage";
+import socket from "./services/socket";
+import { useEffect } from "react";
+
+
+
 function App() {
+  useEffect(() => {
+    socket.connect();
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
   return (
     <>
       <Toaster position="top-right" reverseOrder={false} />
@@ -37,6 +57,8 @@ function App() {
           <Route path="/visitor" element={<VisitorRegistration />} />
           <Route path="/success" element={<SuccessPage />} />
           <Route path="/jobform" element={<JobRegistorForm />} />
+          <Route path="/EnquiryCalls" element={<EnquiryCalls />} />
+
           <Route
             path="/enquiry"
             element={
@@ -58,6 +80,22 @@ function App() {
             element={
               <ProtectedRoute role="admin">
                 <StaffPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ex-employees"
+            element={
+              <ProtectedRoute role="admin">
+                <ExEmployeePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/whatsapp-leads"
+            element={
+              <ProtectedRoute role="admin">
+                <WhatsAppLeads />
               </ProtectedRoute>
             }
           />
@@ -90,6 +128,14 @@ function App() {
             element={
               <ProtectedRoute role="user">
                 <User />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/telecaller"
+            element={
+              <ProtectedRoute role="telecaller">
+                <TelecallerPage />
               </ProtectedRoute>
             }
           />

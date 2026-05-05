@@ -56,6 +56,10 @@ const enquirySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    contact: {
+      type: String,
+      default: "",
+    },
     // Task fields for assignment and tracking
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,

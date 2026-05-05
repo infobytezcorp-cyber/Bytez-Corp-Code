@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios';
 
-const API = import.meta.env.VITE_API_URL; // ✅ backend URL
+const API = import.meta.env.VITE_API_URL; // backend URL
+axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
 
-function initials(name) {
-    return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+function initials(name = "") {
+    return name
+        ?.split(" ")
+        ?.filter(Boolean)
+        ?.map((w) => w[0])
+        ?.join("")
+        ?.slice(0, 2)
+        ?.toUpperCase() || "NA";
 }
 
 const Visitors = () => {
@@ -17,19 +24,24 @@ const Visitors = () => {
 
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 5;
-
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalData, setTotalData] = useState(0);
 
     const fetchVisitors = async () => {
         setLoading(true);
         try {
             const res = await axios.get(`${API}/api/visitor`, {
                 params: {
+                    page: currentPage,
+                    limit: 5,
                     date: dateFilter
                 }
             });
-            //setVisitors(res.data);
-            setVisitors(Array.isArray(res.data) ? res.data : res.data.visitors ?? []);
+
+            setVisitors(res.data.visitors);
+            setTotalPages(res.data.totalPages);
+            setTotalData(res.data.totalData);
+
         } catch (e) {
             console.error("Failed to fetch visitors", e);
         } finally {
@@ -50,7 +62,7 @@ const Visitors = () => {
         fetchVisitors();
         const interval = setInterval(fetchVisitors, 30000); // every 30 sec
         return () => clearInterval(interval);
-    }, [dateFilter]);
+    }, [dateFilter, currentPage]);
 
     useEffect(() => {
         const timer = setInterval(() => setTime(new Date()), 1000);
@@ -64,10 +76,10 @@ const Visitors = () => {
             v.name.toLowerCase().includes(search.toLowerCase()) ||
             v.phone.includes(search)
         );
+
+
     // 🔥 THEN PAGINATION
-    const indexOfLast = currentPage * itemsPerPage;
-    const indexOfFirst = indexOfLast - itemsPerPage;
-    const paginatedVisitors = filtered.slice(indexOfFirst, indexOfLast);
+    const paginatedVisitors = filtered;
 
     const checkedIn = visitors.filter((v) => v.status === "Checked-In").length;
     const checkedOut = visitors.filter((v) => v.status === "Checked-Out").length;
@@ -133,7 +145,8 @@ const Visitors = () => {
                 {/* Stat Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                     {[
-                        { label: "Total visitors", value: visitors.length, color: "text-gray-900" },
+                        // { label: "Total visitors", value: visitors.length, color: "text-gray-900" },
+                        { label: "Total visitors", value: totalData, color: "text-gray-900" },
                         { label: "Currently inside", value: checkedIn, color: "text-green-700" },
                         { label: "Checked out", value: checkedOut, color: "text-gray-500" },
                         { label: "Today's entries", value: today, color: "text-gray-900" },
@@ -320,28 +333,40 @@ const Visitors = () => {
                     )}
                 </div>
 
-                <div className="flex justify-end gap-2 px-5 py-3 border-t border-gray-100">
+                <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
 
-                    <button
-                        onClick={() => setCurrentPage(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-40"
-                    >
-                        Prev
-                    </button>
-
-                    <span className="text-xs text-gray-500 flex items-center">
-                        Page {currentPage} of {Math.ceil(filtered.length / itemsPerPage)}
+                    {/* LEFT - Page Info */}
+                    <span className="text-xs text-gray-400">
+                        Page {currentPage} of {totalPages}
                     </span>
 
-                    <button
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        disabled={currentPage === Math.ceil(filtered.length / itemsPerPage)}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 disabled:opacity-40"
-                    >
-                        Next
-                    </button>
+                    {/* RIGHT - Buttons */}
+                    <div className="flex gap-2">
 
+                        {/* PREV */}
+                        <button
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            disabled={currentPage === 1}
+                            className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                        >
+                            ← Prev
+                        </button>
+
+                        {/* Current Page Pill */}
+                        <span className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded-lg">
+                            {currentPage}
+                        </span>
+
+                        {/* NEXT */}
+                        <button
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            disabled={currentPage === totalPages}
+                            className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                        >
+                            Next →
+                        </button>
+
+                    </div>
                 </div>
 
             </div>
