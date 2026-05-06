@@ -14,7 +14,7 @@ const STAGE_LABELS = [
   { stage: "Converted", label: "Converted", color: "border-violet-500" },
 ];
 
-const COMPLETED_CLIENTS_STAGE = { stage: "Completed Clients", label: "Completed Clients", color: "border-teal-500" };
+const COMPLETED_CLIENTS_STAGE = { stage: "Closed Clients", label: "Closed Clients", color: "border-teal-500" };
 
 export default function Admin() {
   const [showModules, setShowModules] = useState(false);
@@ -101,7 +101,7 @@ export default function Admin() {
   ];
 
   const getStageCount = (stage) => {
-    if (stage === "Completed Clients") {
+    if (stage === "Closed Clients") {
       return completedClientsCount;
     }
     return counts[stage] || 0;
@@ -261,8 +261,8 @@ export default function Admin() {
 
                       return (
                         <div key={item.stage} className="space-y-2">
-                          {/* Add Client Report Heading only before Completed Clients */}
-                          {item.stage === "Completed Clients" && (
+                          {/* Add Client Report Heading only before Closed Clients */}
+                          {item.stage === "Closed Clients" && (
                             <h4 className="text-sm font-bold text-slate-700 mt-6 mb-2 uppercase tracking-wider">
                               Client Report
                             </h4>

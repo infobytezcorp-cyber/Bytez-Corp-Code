@@ -2,6 +2,7 @@ import express from 'express';
 import twilio from 'twilio';
 import Enquiry from '../models/Enquiry.js';
 import WhatsAppLead from '../models/WhatsAppLead.js';
+import sendWhatsAppMessage from '../services/whatsappService.js';
 
 const router = express.Router();
 
@@ -22,6 +23,11 @@ function parseTemplate(text) {
 
 router.post('/whatsapp/webhook', express.urlencoded({ extended: false }), async (req, res) => {
   try {
+    // Debug logging: headers + body
+    console.log('--- Twilio Webhook Received ---');
+    console.log('Headers:', JSON.stringify(req.headers));
+    console.log('Body:', JSON.stringify(req.body));
+
     const fromRaw = req.body.From || '';
     const text = (req.body.Body || '').trim();
     const phone = String(fromRaw).replace(/\D/g, '');
@@ -47,6 +53,8 @@ router.post('/whatsapp/webhook', express.urlencoded({ extended: false }), async 
         "Service: (HomeCare / Health Care) \n" +
         "Contact: "
       );
+      // Attempt API fallback send as well
+      sendWhatsAppMessage(phone, "HI Welcome to Thatha Patti Elders Foundation!\n\nPlease copy, fill, and send:\nName:\nService: (HomeCare / Health Care)\nContact:");
       return res.type('text/xml').send(twiml.toString());
     }
 
@@ -66,6 +74,8 @@ router.post('/whatsapp/webhook', express.urlencoded({ extended: false }), async 
       await leadDoc.save();
 
       twiml.message("Thanks! Your details have been saved. Our agent will contact you shortly.");
+      // Fallback API send
+      sendWhatsAppMessage(phone, "Thanks! Your details have been saved. Our agent will contact you shortly.");
       return res.type('text/xml').send(twiml.toString());
     }
 
