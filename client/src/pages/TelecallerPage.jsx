@@ -17,13 +17,14 @@ import MissedCallsTab from "../components/telecallerscallpage/MissedCallsTab";
 import { formatTimeShort } from "../components/telecallerscallpage/Utilities";
 import { POLL_INTERVAL_MS } from "../components/telecallerscallpage/Utilities";
 
-// ─── Icons ────────────────────────────────────────────────────
+
 const PhoneIcon = ({ className = "w-4 h-4" }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
     strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12 19.79 19.79 0 0 1 1.9 3.37 2 2 0 0 1 3.89 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.99 5.99l1.07-1.07a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
   </svg>
 );
+
 
 const NAV_ITEMS = [
   {
@@ -60,7 +61,7 @@ const NAV_ITEMS = [
   },
 ];
 
-// ─── Sidebar ──────────────────────────────────────────────────
+// Sidebar Component 
 function TelecallerSidebar({ activeTab, setActiveTab, agent, onLogout, collapsed, setCollapsed }) {
   return (
     <aside className={`bg-slate-900 flex flex-col shrink-0 transition-all duration-300 ease-in-out min-h-screen relative z-30 ${collapsed ? "w-16" : "w-60"}`}>
@@ -138,7 +139,7 @@ function TelecallerSidebar({ activeTab, setActiveTab, agent, onLogout, collapsed
   );
 }
 
-// ─── Loading & Error States ───────────────────────────────────
+//Loading & Error States 
 function LoadingState() {
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -153,6 +154,7 @@ function LoadingState() {
   );
 }
 
+// This state is shown if the user is successfully authenticated but there is no agent profile linked to their account. 
 function NoAgentState() {
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -168,7 +170,7 @@ function NoAgentState() {
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────
+// Main Page Component
 export default function TelecallerPage() {
   const dispatch = useDispatch();
   const { agent, activeCall, loading, breakLoading, callLoading, loginTime } =
@@ -178,16 +180,16 @@ export default function TelecallerPage() {
   const [collapsed, setCollapsed] = useState(false);
   const [now, setNow] = useState(new Date());
 
-  // Clock tick
+  // Update the current time every second to keep the clock in the top bar accurate and to allow real-time updates of "time since login" and call durations.
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Initial fetch
+  // Initial fetch of agent profile on page load 
   useEffect(() => { dispatch(fetchMyAgent()); }, [dispatch]);
 
-  // Poll active call
+  // Polling for active call every 30 seconds to keep the dadhboard info up-to-date in case of missed socket events or changes made from another tab/device.
   useEffect(() => {
     if (!agent?._id) return;
     dispatch(fetchMyCall(agent._id));
@@ -195,7 +197,7 @@ export default function TelecallerPage() {
     return () => clearInterval(poll);
   }, [agent?._id, dispatch]);
 
-  // Socket listener
+  // Socket listener for call updates - if any call involving this agent is updated, we refetch the active call to get the latest info and update the UI in real-time.
   useEffect(() => {
     if (!agent?._id) return;
     const handler = () => {
@@ -210,6 +212,7 @@ export default function TelecallerPage() {
   useEffect(() => {
     if (!agent?._id) return;
 
+    // If this event is received, it mean the admin has forced this agent to log out. So we clear local storage and redux state, then redirect to login page.
     const handleForceLogout = (data) => {
       if (data.agentId === agent._id) {
         localStorage.removeItem("token");
@@ -222,11 +225,13 @@ export default function TelecallerPage() {
     return () => socket.off("force-logout", handleForceLogout);
   }, [agent?._id, dispatch]);
 
+  // Toggle break status (only if not busy)
   const handleToggleBreak = () => {
     if (!agent?._id || agent?.status === "busy") return;
     dispatch(toggleMyBreak(agent._id)).then(() => dispatch(fetchMyAgent()));
   };
 
+  // After call ends, refresh agent and call info to update UI
   const handleEndCall = async (callId) => {
     await dispatch(endMyCall(callId));
     dispatch(fetchMyCall(agent._id));
@@ -245,10 +250,11 @@ export default function TelecallerPage() {
     window.location.href = "/";
   };
 
-  // ── Guards ──
+  // Handle loading and no-agent states
   if (loading && !agent) return <LoadingState />;
   if (!agent) return <NoAgentState />;
 
+  // Tab content mapping 
   const tabContent = {
     dashboard: (
       <DashboardTab

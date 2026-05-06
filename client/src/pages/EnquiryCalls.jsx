@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchAgents, toggleBreak, forceLogout  } from "../features/agentSlice";
+import { fetchAgents, toggleBreak, forceLogout } from "../features/agentSlice";
 import { fetchCalls, callbackCall } from "../features/callSlice";
 import Sidebar from "../components/dashboards/visitors/Sidebar";
 import AgentsPanel from "../components/calls/AgentsPanel";
@@ -9,11 +9,13 @@ import MissedCallDetail from "../components/calls/MissedCallDetail";
 import TimeLogsTab from "../components/calls/TimeLogsTab";
 import CallPanel from "../components/calls/CallPanel";
 import AgentBreakLogs from "../components/calls/AgentBreakLogs";
-
 import QuickAccess from "../components/calls/QuickAccess";
 import UserCallReport from "../components/calls/UserCallReport";
 import UserLoginReport from "../components/calls/UserLoginReport";
 import Forcelogoutconfirm from "../components/calls/Forcelogoutconfirm";
+import socket from "../services/socket";       // ✅ NEW
+import toast from "react-hot-toast";           // ✅ NEW
+
 
 const TABS = [
   { id: "agents", label: "Agents", icon: "👤" },
@@ -21,195 +23,104 @@ const TABS = [
   { id: "timelogs", label: "Time Logs", icon: "⏱" },
 ];
 
-/* ─── tiny keyframes injected once ─── */
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
   @keyframes spin   { to { transform: rotate(360deg); } }
   @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:.35} }
   @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   @keyframes bounce { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+  @keyframes pageIn { from{opacity:0;transform:translateX(18px)} to{opacity:1;transform:translateX(0)} }
 `;
 
-/* ─── design tokens ─── */
 const T = {
-  bg: "#F5F6FA",
-  card: "#FFFFFF",
-  border: "#E8EAF0",
-  borderLight: "#F0F1F6",
-  text: "#1A1D2E",
-  muted: "#8B90A7",
-  accent: "#4F6EF7",   /* indigo-blue */
-  accentSoft: "#EEF1FE",
-  green: "#18B87C",
-  greenSoft: "#E8F8F2",
-  amber: "#F59E0B",
-  amberSoft: "#FEF3C7",
-  red: "#EF4444",
-  redSoft: "#FEF2F2",
-  shadow: "0 2px 12px rgba(26,29,46,0.07)",
-  shadowHover: "0 6px 24px rgba(26,29,46,0.12)",
-  radius: "18px",
-  radiusSm: "12px",
-  font: "'Outfit', sans-serif",
+  bg: "#F5F6FA", card: "#FFFFFF", border: "#E8EAF0", borderLight: "#F0F1F6",
+  text: "#1A1D2E", muted: "#8B90A7", accent: "#4F6EF7", accentSoft: "#EEF1FE",
+  green: "#18B87C", greenSoft: "#E8F8F2", amber: "#F59E0B", amberSoft: "#FEF3C7",
+  red: "#EF4444", redSoft: "#FEF2F2",
+  shadow: "0 2px 12px rgba(26,29,46,0.07)", shadowHover: "0 6px 24px rgba(26,29,46,0.12)",
+  radius: "18px", radiusSm: "12px", font: "'Outfit', sans-serif",
 };
 
-/* ─── reusable pill badge ─── */
 function Badge({ children, color = T.accent, bg = T.accentSoft }) {
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 4,
-      fontSize: 11, fontWeight: 700, letterSpacing: .4,
-      padding: "3px 10px", borderRadius: 99,
-      color, background: bg,
-    }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, letterSpacing: .4, padding: "3px 10px", borderRadius: 99, color, background: bg }}>
       {children}
     </span>
   );
 }
 
-/* ─── stat card ─── */
+
 function StatCard({ label, value, icon, color, bg }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: T.card,
-        border: `1.5px solid ${T.border}`,
-        borderRadius: T.radius,
-        padding: "20px 22px",
-        display: "flex", alignItems: "center", gap: 16,
-        boxShadow: hovered ? T.shadowHover : T.shadow,
-        transform: hovered ? "translateY(-3px)" : "translateY(0)",
-        transition: "all .22s ease",
-        cursor: "default",
-        animation: "fadeUp .4s ease both",
-      }}
-    >
-      <div style={{
-        width: 52, height: 52, borderRadius: 14,
-        background: bg, display: "flex", alignItems: "center",
-        justifyContent: "center", fontSize: 22, flexShrink: 0,
-        boxShadow: `0 4px 12px ${bg}`,
-      }}>
-        {icon}
-      </div>
+    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      style={{ background: T.card, border: `1.5px solid ${T.border}`, borderRadius: T.radius, padding: "20px 22px", display: "flex", alignItems: "center", gap: 16, boxShadow: hovered ? T.shadowHover : T.shadow, transform: hovered ? "translateY(-3px)" : "translateY(0)", transition: "all .22s ease", cursor: "default", animation: "fadeUp .4s ease both" }}>
+      <div style={{ width: 52, height: 52, borderRadius: 14, background: bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, boxShadow: `0 4px 12px ${bg}` }}>{icon}</div>
       <div>
-        <p style={{ fontSize: 10, color: T.muted, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", margin: 0 }}>
-          {label}
-        </p>
-        <p style={{ fontSize: 30, fontWeight: 800, color, margin: "2px 0 0", lineHeight: 1 }}>
-          {value}
-        </p>
+        <p style={{ fontSize: 10, color: T.muted, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", margin: 0 }}>{label}</p>
+        <p style={{ fontSize: 30, fontWeight: 800, color, margin: "2px 0 0", lineHeight: 1 }}>{value}</p>
       </div>
     </div>
   );
 }
 
-/* ─── agent activity card ─── */
 function AgentCard({ agent }) {
-  const sessions = agent.loginHistory || [];
-  const lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
   const isOnline = agent.status !== "offline";
   const isBreak = agent.status === "break";
+  const sessions = agent.loginHistory || [];
 
-  const statusLabel = isBreak ? "On Break" : isOnline ? "Live Online" : "Offline";
-  const dotColor = isBreak ? T.amber : isOnline ? T.green : "#CBD5E1";
-  const accentColor = isBreak ? T.amber : isOnline ? T.green : T.muted;
+  
+  let displayLogin = null;
+  let displayLogout = null;
+  let displayDuration = 0;
+
+  if (isOnline && agent.loginTime) {
+    displayLogin = agent.loginTime;
+    displayLogout = null;
+    const diff = Math.max(0, Date.now() - new Date(agent.loginTime));
+    displayDuration = Math.floor(diff / 1000 / 60);
+  } else if (sessions.length > 0) {
+    const last = sessions[sessions.length - 1];
+    displayLogin = last.loginTime;
+    displayLogout = last.logoutTime;
+    displayDuration = last.durationMinutes;
+  }
 
   return (
-    <div style={{
-      background: T.card,
-      border: `1.5px solid ${isBreak ? T.amberSoft : isOnline ? "#D1FAE5" : T.border}`,
-      borderRadius: T.radius,
-      padding: 18,
-      boxShadow: isOnline ? T.shadow : "none",
-      opacity: isOnline ? 1 : .65,
-      transition: "all .3s",
-      animation: "fadeUp .4s ease both",
-    }}>
-      {/* top row */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* avatar */}
-          <div style={{
-            width: 38, height: 38, borderRadius: 12,
-            background: `linear-gradient(135deg, ${T.accent}, #7B93F8)`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#fff", fontWeight: 800, fontSize: 15, flexShrink: 0,
-          }}>
-            {agent.name?.[0]?.toUpperCase()}
+    <div className={`p-5 rounded-3xl border transition-all ${isOnline ? "bg-emerald-50/40 border-emerald-100 shadow-sm" : "bg-white border-slate-100 opacity-70 grayscale-[0.2]"}`}>
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white flex items-center justify-center font-black text-sm">
+            {agent.name?.[0]}
           </div>
           <div>
-            <p style={{ fontSize: 13, fontWeight: 700, color: T.text, margin: 0 }}>{agent.name}</p>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
-              <span style={{
-                width: 6, height: 6, borderRadius: "50%",
-                background: dotColor, display: "inline-block",
-                boxShadow: isOnline ? `0 0 0 3px ${dotColor}30` : "none",
-                animation: isOnline ? "blink 2s infinite" : "none",
-              }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: accentColor, letterSpacing: .8, textTransform: "uppercase" }}>
-                {statusLabel}
-              </span>
-            </div>
+            <p className="text-sm font-black text-slate-800">{agent.name}</p>
+            <p className={`text-[10px] font-bold uppercase tracking-widest ${isOnline ? "text-emerald-600" : "text-slate-400"}`}>
+              {isOnline ? "● Live Online" : "● Offline"}
+            </p>
           </div>
         </div>
-        <Badge
-          color={isBreak ? T.amber : isOnline ? T.green : T.muted}
-          bg={isBreak ? T.amberSoft : isOnline ? T.greenSoft : T.borderLight}
-        >
-          {isBreak ? "Break" : isOnline ? "Active" : "Inactive"}
-        </Badge>
+        <div className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${isOnline ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>
+          {isOnline ? "Active" : "Inactive"}
+        </div>
       </div>
 
-      {/* session info */}
-      {lastSession ? (
-        <div style={{
-          background: T.bg, borderRadius: T.radiusSm,
-          padding: "10px 12px",
-          border: `1px solid ${T.borderLight}`,
-          display: "flex", flexDirection: "column", gap: 7,
-        }}>
-          <InfoRow label="Login" value={
-            new Date(lastSession.loginTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-          } />
-          <div style={{ height: 1, background: T.borderLight }} />
-          <InfoRow
-            label="Status"
-            value={
-              isOnline
-                ? <span style={{ color: T.accent, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: T.accent, display: "inline-block", animation: "bounce 1.4s infinite" }} />
-                  Working
-                </span>
-                : <span style={{ color: T.red, fontWeight: 700 }}>
-                  Out {lastSession.logoutTime
-                    ? new Date(lastSession.logoutTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                    : "—"}
-                </span>
-            }
-          />
-          <div style={{ height: 1, background: T.borderLight }} />
-          <InfoRow label="Duration" value={
-            <span style={{ color: T.text, fontWeight: 700 }}>
-              {lastSession.durationMinutes || 0}
-              <span style={{ fontSize: 9, color: T.muted, marginLeft: 3 }}>MIN</span>
-            </span>
-          } />
+      <div className="bg-white/80 p-3 rounded-2xl border border-slate-50 space-y-2">
+        <div className="flex justify-between text-[11px] font-bold">
+          <span className="text-slate-400 uppercase">Login</span>
+          <span className="text-slate-700">{displayLogin ? new Date(displayLogin).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}</span>
         </div>
-      ) : (
-        <div style={{
-          padding: "18px 12px", textAlign: "center",
-          border: `1.5px dashed ${T.border}`,
-          borderRadius: T.radiusSm, background: T.bg,
-        }}>
-          <p style={{ fontSize: 10, color: T.muted, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", margin: 0 }}>
-            No session yet
-          </p>
+        <div className="flex justify-between text-[11px] font-bold">
+          <span className="text-slate-400 uppercase">Status</span>
+          <span className={isOnline ? "text-indigo-600 animate-pulse" : "text-rose-500"}>
+            {isOnline ? "Working Now" : `Out ${displayLogout ? new Date(displayLogout).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}`}
+          </span>
         </div>
-      )}
+        <div className="pt-2 border-t border-slate-50 flex justify-between text-[11px] font-black uppercase">
+          <span className="text-slate-400">Duration</span>
+          <span className="text-slate-800">{displayDuration} Min</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -223,8 +134,6 @@ function InfoRow({ label, value }) {
   );
 }
 
-/* ─── section heading ─── */
-
 function SectionHeading({ children }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
@@ -234,9 +143,20 @@ function SectionHeading({ children }) {
   );
 }
 
-/* ══════════════════════════════════════════════
-   MAIN PAGE
-══════════════════════════════════════════════ */
+function ReportPageWrapper({ title, onBack, children }) {
+  return (
+    <div style={{ flex: 1, overflowY: "auto", animation: "pageIn .25s ease" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 32px", background: T.card, borderBottom: `1.5px solid ${T.border}`, boxShadow: T.shadow, position: "sticky", top: 0, zIndex: 10 }}>
+        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 10, border: `1.5px solid ${T.border}`, background: T.card, fontSize: 13, fontWeight: 700, color: T.muted, cursor: "pointer", fontFamily: T.font }}>
+          ← Back
+        </button>
+        <span style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{title}</span>
+      </div>
+      <div style={{ padding: "24px 32px" }}>{children}</div>
+    </div>
+  );
+}
+
 export default function EnquiryCalls() {
   const dispatch = useDispatch();
   const { list: agents, loading: agentsLoading } = useSelector(s => s.agents);
@@ -246,7 +166,6 @@ export default function EnquiryCalls() {
   const [selectedCall, setSelectedCall] = useState(null);
   const [agentsTabSelectedAgent, setAgentsTabSelectedAgent] = useState(null);
   const [agentsTabLogsDate, setAgentsTabLogsDate] = useState("");
-
   const [openReport, setOpenReport] = useState(null);
   const [logoutTarget, setLogoutTarget] = useState(null);
 
@@ -256,24 +175,28 @@ export default function EnquiryCalls() {
   useEffect(() => {
     Promise.all([dispatch(fetchAgents()), dispatch(fetchCalls())]).then(() => {
       initialLoadDone.current = true;
-      console.log(calls, agents, "Data synced");
     });
     const iv = setInterval(() => { dispatch(fetchAgents()); dispatch(fetchCalls()); }, 15000);
     return () => clearInterval(iv);
   }, [dispatch]);
 
+  // ✅ NEW: 1hr missed call alert from backend
+  useEffect(() => {
+    const handleMissedAlert = (data) => {
+      toast.error(`⚠️ ${data.message}`, { duration: 8000, style: { fontWeight: 700, fontSize: 13 } });
+    };
+    socket.on("missed-call-alert", handleMissedAlert);
+    return () => socket.off("missed-call-alert", handleMissedAlert);
+  }, []);
+
   const handleCallback = (id) => { dispatch(callbackCall(id)); setSelectedCall(null); };
-
-
- /* force logout — toggleBreak */
   const handleForceLogoutConfirm = () => {
     if (!logoutTarget) return;
-    dispatch(forceLogout(logoutTarget._id)); // ← agentSlice add thunk
+    dispatch(forceLogout(logoutTarget._id));
     setLogoutTarget(null);
   };
 
   const missedCalls = calls.filter(c => c.status === "missed");
-  const activeCalls = calls.filter(c => c.status === "assigned" || c.status === "in_progress");
   const availableAgents = agents.filter(a => a.status === "available");
   const onBreakAgents = agents.filter(a => a.status === "break");
 
@@ -282,26 +205,36 @@ export default function EnquiryCalls() {
       <style>{CSS}</style>
       <Sidebar />
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      {isInitialLoading && (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14 }}>
+          <div style={{ width: 42, height: 42, border: `3px solid ${T.border}`, borderTop: `3px solid ${T.accent}`, borderRadius: "50%", animation: "spin .8s linear infinite" }} />
+          <p style={{ color: T.muted, fontSize: 12, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>Syncing live data…</p>
+        </div>
+      )}
 
-        {/* ── Loading ── */}
-        {isInitialLoading && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", flexDirection: "column", gap: 14 }}>
-            <div style={{ width: 42, height: 42, border: `3px solid ${T.border}`, borderTop: `3px solid ${T.accent}`, borderRadius: "50%", animation: "spin .8s linear infinite" }} />
-            <p style={{ color: T.muted, fontSize: 12, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>Syncing live data…</p>
-          </div>
-        )}
+      {!isInitialLoading && openReport === "call" && (
+        <ReportPageWrapper title="User Call Report" onBack={() => setOpenReport(null)}>
+          <UserCallReport agents={agents} calls={calls} onClose={() => setOpenReport(null)} inPage={true} />
+        </ReportPageWrapper>
+      )}
 
-        {/* ── Missed call detail ── */}
-        {!isInitialLoading && selectedCall && (
+      {!isInitialLoading && openReport === "login" && (
+        <ReportPageWrapper title="User Login Report" onBack={() => setOpenReport(null)}>
+          <UserLoginReport agents={agents} onClose={() => setOpenReport(null)} inPage={true} />
+        </ReportPageWrapper>
+      )}
+
+      {!isInitialLoading && !openReport && selectedCall && (
+        <div style={{ flex: 1, overflowY: "auto" }}>
           <MissedCallDetail call={selectedCall} onBack={() => setSelectedCall(null)} onCallback={handleCallback} />
-        )}
+        </div>
+      )}
 
-        {/* ── Dashboard ── */}
-        {!isInitialLoading && !selectedCall && (
+      {!isInitialLoading && !openReport && !selectedCall && (
+        <div style={{ flex: 1, overflowY: "auto" }}>
           <div style={{ padding: "32px 36px", maxWidth: 1520, margin: "0 auto" }}>
 
-            {/* ── Page Header ── */}
+            {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
@@ -311,22 +244,13 @@ export default function EnquiryCalls() {
                 <h1 style={{ fontSize: 26, fontWeight: 800, color: T.text, margin: 0, letterSpacing: -.5 }}>Call Center Ops</h1>
                 <p style={{ color: T.muted, fontSize: 13, marginTop: 3 }}>Real-time agent performance & call traffic</p>
               </div>
-
-              {/* live pulse chip */}
-              <div style={{
-                display: "flex", alignItems: "center", gap: 8,
-                background: T.card, border: `1.5px solid ${T.border}`,
-                borderRadius: 99, padding: "8px 16px",
-                boxShadow: T.shadow,
-              }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.card, border: `1.5px solid ${T.border}`, borderRadius: 99, padding: "8px 16px", boxShadow: T.shadow }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.green, display: "inline-block", animation: "blink 1.5s infinite" }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: T.text }}>
-                  {availableAgents.length} / {agents.length} agents online
-                </span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: T.text }}>{availableAgents.length} / {agents.length} agents online</span>
               </div>
             </div>
 
-            {/* ── Stat Cards ── */}
+            {/* Stat Cards */}
             {activeTab !== "timelogs" && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
                 <StatCard label="Total Agents" value={agents.length} icon="👥" color="#4F6EF7" bg="#EEF1FE" />
@@ -336,7 +260,7 @@ export default function EnquiryCalls() {
               </div>
             )}
 
-            {/* ── Agent Activity ── */}
+            {/* Agent Activity */}
             <div style={{ marginBottom: 28 }}>
               <SectionHeading>Recent Agent Activity</SectionHeading>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 13 }}>
@@ -344,64 +268,26 @@ export default function EnquiryCalls() {
               </div>
             </div>
 
-
-            {/* ══ QUICK ACCESS ══ */}
             <QuickAccess onOpen={setOpenReport} />
 
-
-            {/* ── Tab Bar ── */}
-            <div style={{
-              display: "flex", gap: 3,
-              background: T.card,
-              border: `1.5px solid ${T.border}`,
-              padding: 5, borderRadius: 14,
-              width: "fit-content", marginBottom: 18,
-              boxShadow: T.shadow,
-            }}>
+            {/* Tab Bar */}
+            <div style={{ display: "flex", gap: 3, background: T.card, border: `1.5px solid ${T.border}`, padding: 5, borderRadius: 14, width: "fit-content", marginBottom: 18, boxShadow: T.shadow }}>
               {TABS.map(tab => {
                 const isActive = activeTab === tab.id;
                 const showBadge = tab.id === "missed" && missedCalls.length > 0;
                 return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 7,
-                      padding: "9px 18px", borderRadius: 10,
-                      fontSize: 13, fontWeight: 700,
-                      border: "none", cursor: "pointer",
-                      transition: "all .18s ease",
-                      background: isActive ? T.accent : "transparent",
-                      color: isActive ? "#fff" : T.muted,
-                      boxShadow: isActive ? `0 3px 10px ${T.accent}50` : "none",
-                      fontFamily: T.font,
-                    }}
-                  >
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", transition: "all .18s ease", background: isActive ? T.accent : "transparent", color: isActive ? "#fff" : T.muted, boxShadow: isActive ? `0 3px 10px ${T.accent}50` : "none", fontFamily: T.font }}>
                     <span style={{ fontSize: 15 }}>{tab.icon}</span>
                     {tab.label}
-                    {showBadge && (
-                      <span style={{
-                        fontSize: 10, fontWeight: 800,
-                        padding: "1px 7px", borderRadius: 99,
-                        background: isActive ? "rgba(255,255,255,.25)" : T.red,
-                        color: isActive ? "#fff" : "#fff",
-                      }}>
-                        {missedCalls.length}
-                      </span>
-                    )}
+                    {showBadge && <span style={{ fontSize: 10, fontWeight: 800, padding: "1px 7px", borderRadius: 99, background: isActive ? "rgba(255,255,255,.25)" : T.red, color: "#fff" }}>{missedCalls.length}</span>}
                   </button>
                 );
               })}
             </div>
 
-            {/* ── Tab Panel ── */}
-            <div style={{
-              background: T.card,
-              borderRadius: T.radius,
-              border: `1.5px solid ${T.border}`,
-              boxShadow: T.shadow,
-              overflow: "hidden", marginBottom: 22,
-            }}>
+            {/* Tab Panel */}
+            <div style={{ background: T.card, borderRadius: T.radius, border: `1.5px solid ${T.border}`, boxShadow: T.shadow, overflow: "hidden", marginBottom: 22 }}>
               <div style={{ padding: 4 }}>
                 {activeTab === "agents" && (
                   <AgentsPanel
@@ -409,30 +295,24 @@ export default function EnquiryCalls() {
                     availableCount={availableAgents.length}
                     onToggleBreak={(id) => dispatch(toggleBreak(id))}
                     onViewLogs={(agent) => { setAgentsTabSelectedAgent(agent); setAgentsTabLogsDate(""); }}
-                    onForceLogout={(agent) => setLogoutTarget(agent)} 
+                    onForceLogout={(agent) => setLogoutTarget(agent)}
                   />
                 )}
                 {activeTab === "timelogs" && <TimeLogsTab agents={agents} />}
-                {activeTab === "missed" && <MissedCallsPanel calls={missedCalls} onSelect={setSelectedCall} />}
+                {/* ✅ CHANGED: pass full calls array — MissedCallsPanel filters internally */}
+                {activeTab === "missed" && <MissedCallsPanel calls={calls} onSelect={setSelectedCall} />}
               </div>
             </div>
 
-            {/* ── Call Panel ── */}
-            <div style={{
-              background: T.card,
-              borderRadius: T.radius,
-              border: `1.5px solid ${T.border}`,
-              boxShadow: T.shadow,
-              overflow: "hidden",
-            }}>
+            {/* Call Panel */}
+            <div style={{ background: T.card, borderRadius: T.radius, border: `1.5px solid ${T.border}`, boxShadow: T.shadow, overflow: "hidden" }}>
               <CallPanel agents={agents} />
             </div>
 
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* ── Agent Break Logs Drawer ── */}
       {agentsTabSelectedAgent && (
         <AgentBreakLogs
           agent={agentsTabSelectedAgent}
@@ -442,23 +322,8 @@ export default function EnquiryCalls() {
         />
       )}
 
-      {/* ══ REPORT MODALS ══ */}
-      {openReport === "call" && (
-        <UserCallReport
-          agents={agents}
-          calls={calls}
-          onClose={() => setOpenReport(null)}
-        />
-      )}
-      {openReport === "login" && (
-        <UserLoginReport
-          agents={agents}
-          onClose={() => setOpenReport(null)}
-        />
-      )}
-
       {logoutTarget && (
-        <Forcelogoutconfirm 
+        <Forcelogoutconfirm
           agent={logoutTarget}
           onConfirm={handleForceLogoutConfirm}
           onCancel={() => setLogoutTarget(null)}

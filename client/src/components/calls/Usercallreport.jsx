@@ -1,143 +1,212 @@
 import { useState, useMemo } from "react";
+import * as XLSX from "xlsx";
+
 
 const toLocalDateStr = (isoString) => {
   if (!isoString) return "";
   const d = new Date(isoString);
-  return d.getFullYear() + '-' + 
-         String(d.getMonth() + 1).padStart(2, '0') + '-' + 
-         String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
 };
 
 export default function UserCallReport({ agents = [], calls = [], onClose }) {
   const [selectedDate, setSelectedDate] = useState(toLocalDateStr(new Date()));
   const [sortKey, setSortKey] = useState("total");
 
-  const filteredCalls = useMemo(() => {
-    return calls.filter(c => toLocalDateStr(c.createdAt) === selectedDate);
-  }, [calls, selectedDate]);
+  const filteredCalls = useMemo(() =>
+    calls.filter(c => toLocalDateStr(c.createdAt) === selectedDate),
+    [calls, selectedDate]
+  );
+
+
 
   const reportRows = useMemo(() => {
     return agents.map(agent => {
       const agentCalls = filteredCalls.filter(c => {
-        const callAgentId = c.agent?._id || c.agent || c.assignedTo?._id || c.assignedTo || c.agentId;
-        return callAgentId && String(callAgentId) === String(agent._id);
+        const id = c.agent?._id || c.agent || c.assignedTo?._id || c.assignedTo || c.agentId;
+        return id && String(id) === String(agent._id);
       });
-
       const answered = agentCalls.filter(c => ["answered", "completed"].includes(c.status?.toLowerCase())).length;
       const missed = agentCalls.filter(c => c.status?.toLowerCase() === "missed").length;
       const inProgress = agentCalls.filter(c => ["in_progress", "assigned"].includes(c.status?.toLowerCase())).length;
-      
       const rate = agentCalls.length > 0 ? Math.round((answered / agentCalls.length) * 100) : 0;
-
-      return {
-        id: agent._id,
-        name: agent.name || "Unknown",
-        status: agent.status,
-        total: agentCalls.length,
-        answered,
-        missed,
-        inProgress,
-        rate
-      };
+      return { id: agent._id, name: agent.name || "Unknown", status: agent.status, total: agentCalls.length, answered, missed, inProgress, rate };
     }).sort((a, b) => b[sortKey] - a[sortKey]);
   }, [agents, filteredCalls, sortKey]);
 
-  const totals = useMemo(() => {
-    return {
-      total: filteredCalls.length,
-      answered: filteredCalls.filter(c => ["answered", "completed"].includes(c.status?.toLowerCase())).length,
-      missed: filteredCalls.filter(c => c.status?.toLowerCase() === "missed").length,
-      inProgress: filteredCalls.filter(c => ["in_progress", "assigned"].includes(c.status?.toLowerCase())).length,
-    };
-  }, [filteredCalls]);
+  const totals = useMemo(() => ({
+    total: filteredCalls.length,
+    answered: filteredCalls.filter(c => ["answered", "completed"].includes(c.status?.toLowerCase())).length,
+    missed: filteredCalls.filter(c => c.status?.toLowerCase() === "missed").length,
+    inProgress: filteredCalls.filter(c => ["in_progress", "assigned"].includes(c.status?.toLowerCase())).length,
+  }), [filteredCalls]);
 
-  const maxTotal = Math.max(...reportRows.map(r => r.total), 1);
+  const SORT_KEYS = ["total", "answered", "missed", "inProgress"];
 
+  const downloadExcel = () => {
+    // Call Report
+    const rows = reportRows.map(r => ({
+      "Agent Name": r.name,
+      "Status": r.status,
+      "Total Calls": r.total,
+      "Answered": r.answered,
+      "Missed": r.missed,
+      "Pending": r.inProgress,
+      "Performance (%)": r.rate,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Call Report");
+    XLSX.writeFile(wb, `call-report-${selectedDate}.xlsx`);
+  };
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 md:p-10 font-sans">
-      <div className="bg-[#F8FAFC] w-full max-w-6xl max-h-[92vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-        
-        {/* Header */}
-        <div className="p-8 bg-white border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-indigo-50 rounded-3xl flex items-center justify-center text-3xl shadow-inner">📞</div>
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Call Performance Analytics</h2>
-              <p className="text-sm text-slate-500 font-bold uppercase tracking-widest mt-1 opacity-70">
-                Data for {selectedDate} • {filteredCalls.length} total calls found
-              </p>
-            </div>
-          </div>
+    <div className="min-h-full bg-slate-50 font-sans">
 
-          <div className="flex items-center gap-3">
-            <input 
-              type="date" 
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-5 py-2.5 rounded-2xl border border-slate-200 text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-indigo-100 transition-all bg-slate-50 cursor-pointer"
-            />
-            <button onClick={onClose} className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white border border-slate-200 text-slate-400 hover:text-rose-500 transition-all text-xl">✕</button>
+      {/* ── Header ── */}
+      <div className="bg-white border-b border-slate-100 px-8 py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-2xl shadow-inner">📞</div>
+          <div>
+            <h2 className="text-xl font-black text-slate-900 tracking-tight">Call Performance Analytics</h2>
+            <p className="text-xs text-slate-400 font-semibold mt-0.5">
+              {selectedDate} &nbsp;·&nbsp; {filteredCalls.length} calls found
+            </p>
           </div>
         </div>
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={e => setSelectedDate(e.target.value)}
+            className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-300 bg-slate-50 cursor-pointer transition-all"
+          />
+        </div>
+      </div>
 
-        {/* Summary Cards */}
-        <div className="px-8 py-6 flex flex-wrap gap-4 bg-slate-50/50">
+      <div className="px-8 py-6 space-y-6">
+
+        {/* ── Summary Cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: "Total Volume", value: totals.total, color: "text-indigo-600", bg: "bg-indigo-50", icon: "📊" },
-            { label: "Answered", value: totals.answered, color: "text-emerald-600", bg: "bg-emerald-50", icon: "✅" },
-            { label: "Missed Calls", value: totals.missed, color: "text-rose-600", bg: "bg-rose-50", icon: "❌" },
-            { label: "Still Pending", value: totals.inProgress, color: "text-amber-600", bg: "bg-amber-50", icon: "⏳" }
+            { label: "Total Volume", value: totals.total, color: "text-indigo-600", bg: "bg-indigo-50", ring: "ring-indigo-100", icon: "📊" },
+            { label: "Answered", value: totals.answered, color: "text-emerald-600", bg: "bg-emerald-50", ring: "ring-emerald-100", icon: "✅" },
+            { label: "Missed", value: totals.missed, color: "text-rose-600", bg: "bg-rose-50", ring: "ring-rose-100", icon: "❌" },
+            { label: "Pending", value: totals.inProgress, color: "text-amber-600", bg: "bg-amber-50", ring: "ring-amber-100", icon: "⏳" },
           ].map(s => (
-            <div key={s.label} className="flex-1 min-w-[180px] p-5 rounded-[2rem] bg-white border border-slate-100 shadow-sm flex items-center gap-4">
-               <div className={`w-12 h-12 rounded-2xl ${s.bg} ${s.color} flex items-center justify-center text-xl shadow-inner`}>{s.icon}</div>
-               <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</p>
-                  <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-               </div>
+            <div key={s.label} className={`bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center gap-4 ring-1 ${s.ring} hover:shadow-md transition-shadow`}>
+              <div className={`w-11 h-11 rounded-xl ${s.bg} flex items-center justify-center text-xl shrink-0`}>{s.icon}</div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.label}</p>
+                <p className={`text-2xl font-black ${s.color} leading-none mt-0.5`}>{s.value}</p>
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Table Section */}
-        <div className="flex-1 overflow-y-auto px-8 pb-8">
-          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-            <div className="grid grid-cols-12 px-8 py-4 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-              <div className="col-span-3">Agent Details</div>
-              <div className="col-span-2">Total Volume</div>
-              <div className="col-span-2">Answered</div>
-              <div className="col-span-2">Missed</div>
-              <div className="col-span-2">Pending</div>
-              <div className="col-span-1 text-center">Score</div>
-            </div>
+        {/* ── Sort Pills ── */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">Sort by:</span>
+          {SORT_KEYS.map(k => (
+            <button
+              key={k}
+              onClick={() => setSortKey(k)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${sortKey === k
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200"
+                  : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
+                }`}
+            >
+              {k === "inProgress" ? "Pending" : k.charAt(0).toUpperCase() + k.slice(1)}
+            </button>
+          ))}
+        </div>
 
-            {reportRows.length === 0 ? (
-              <div className="p-24 text-center">
-                <p className="text-slate-400 font-bold italic">No agents found.</p>
-              </div>
-            ) : (
-              reportRows.map((row) => (
-                <div key={row.id} className="grid grid-cols-12 px-8 py-6 items-center border-b border-slate-50 hover:bg-slate-50/50 transition-all">
-                  <div className="col-span-3 flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-2xl bg-slate-800 text-white flex items-center justify-center font-black text-xs shadow-lg">{row.name.charAt(0)}</div>
-                    <div>
-                      <p className="text-sm font-black text-slate-800 leading-none">{row.name}</p>
-                      <p className="text-[10px] mt-1.5 font-bold text-slate-400 uppercase tracking-tighter italic">Status: {row.status}</p>
-                    </div>
+        {/* ── Table ── */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+
+          {/* Table Header */}
+          <div className="grid grid-cols-12 px-6 py-3 bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <div className="col-span-4">Agent</div>
+            <div className="col-span-2 text-center">Total</div>
+            <div className="col-span-2 text-center">Answered</div>
+            <div className="col-span-2 text-center">Missed</div>
+            <div className="col-span-1 text-center">Pending</div>
+            <div className="col-span-1 text-center">Score</div>
+          </div>
+
+          {reportRows.length === 0 ? (
+            <div className="py-20 text-center">
+              <p className="text-3xl mb-2">📭</p>
+              <p className="text-sm text-slate-400 font-medium">No data for this date.</p>
+            </div>
+          ) : (
+            reportRows.map((row, idx) => (
+              <div
+                key={row.id}
+                className="grid grid-cols-12 px-6 py-4 items-center border-b border-slate-50 hover:bg-indigo-50/30 transition-colors group"
+              >
+                {/* Agent */}
+                <div className="col-span-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-black text-sm shadow-md shrink-0">
+                    {row.name.charAt(0)}
                   </div>
-                  <div className="col-span-2 text-sm font-black text-slate-700">{row.total} Calls</div>
-                  <div className="col-span-2 text-sm font-black text-emerald-600">+{row.answered}</div>
-                  <div className="col-span-2 text-sm font-black text-rose-500">-{row.missed}</div>
-                  <div className="col-span-2 text-sm font-black text-amber-500">{row.inProgress}</div>
-                  <div className="col-span-1 text-center">
-                    <span className={`px-3 py-1 rounded-lg text-xs font-black ${row.rate > 75 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                      {row.rate}%
+                  <div>
+                    <p className="text-sm font-black text-slate-800">{row.name}</p>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${row.status === "available" ? "bg-emerald-100 text-emerald-700"
+                        : row.status === "break" ? "bg-amber-100 text-amber-700"
+                          : row.status === "busy" ? "bg-rose-100 text-rose-700"
+                            : "bg-slate-100 text-slate-500"
+                      }`}>
+                      {row.status}
                     </span>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+
+                {/* Total */}
+                <div className="col-span-2 text-center">
+                  <span className="text-sm font-black text-slate-700">{row.total}</span>
+                </div>
+
+                {/* Answered */}
+                <div className="col-span-2 text-center">
+                  <span className="text-sm font-black text-emerald-600">+{row.answered}</span>
+                </div>
+
+                {/* Missed */}
+                <div className="col-span-2 text-center">
+                  <span className="text-sm font-black text-rose-500">-{row.missed}</span>
+                </div>
+
+                {/* Pending */}
+                <div className="col-span-1 text-center">
+                  <span className="text-sm font-black text-amber-500">{row.inProgress}</span>
+                </div>
+
+                {/* Score */}
+                <div className="col-span-1 text-center">
+                  <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-black ${row.rate >= 75 ? "bg-emerald-100 text-emerald-700"
+                      : row.rate >= 50 ? "bg-amber-100 text-amber-700"
+                        : "bg-rose-100 text-rose-600"
+                    }`}>
+                    {row.rate}%
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
+
+        {/* ── Footer ── */}
+        <div className="flex justify-end pb-4">
+          <button
+            onClick={downloadExcel}
+            className="px-6 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-black transition-all shadow-lg shadow-slate-200 cursor-pointer"
+          >
+            📥 Download Excel
+          </button>
+        </div>
+
       </div>
     </div>
   );

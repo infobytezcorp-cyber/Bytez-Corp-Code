@@ -1,15 +1,12 @@
-// src/components/calls/AgentsPanel.jsx
 import { useState, useEffect, useCallback } from "react";
 
-// ─────────────────────────────────────────────
 // CONSTANTS
-// ─────────────────────────────────────────────
+// Break limit set to 1 hour (3600 seconds) - can be adjusted as needed
 const BREAK_LIMIT_SECONDS = 3600; // 1 hour
 const TIMER_INTERVAL_MS = 1000; // 1 second
 
-// ─────────────────────────────────────────────
 // UTILITY — seconds → "1h 23m 45s"
-// ─────────────────────────────────────────────
+// Converts total seconds into a human-readable format (e.g., "1h 23m 45s")
 function formatDuration(totalSeconds) {
   if (!totalSeconds || totalSeconds < 0) return "0s";
   const h = Math.floor(totalSeconds / 3600);
@@ -20,9 +17,9 @@ function formatDuration(totalSeconds) {
   return `${s}s`;
 }
 
-// ─────────────────────────────────────────────
+
 // HOOK — Live break timer
-// ─────────────────────────────────────────────
+// Returns elapsed break time in seconds, updating every second when on break
 function useBreakTimer(status, breakStartTime) {
   const getElapsed = useCallback(() => {
     if (status !== "break" || !breakStartTime) return 0;
@@ -32,6 +29,7 @@ function useBreakTimer(status, breakStartTime) {
 
   const [elapsed, setElapsed] = useState(getElapsed);
 
+  // Update elapsed time every second when on break
   useEffect(() => {
     if (status !== "break" || !breakStartTime) {
       setElapsed(0);
@@ -48,6 +46,7 @@ function useBreakTimer(status, breakStartTime) {
 // ─────────────────────────────────────────────
 // STYLE HELPERS
 // ─────────────────────────────────────────────
+// Status badge styles based on agent status and wherther break time is over the limit
 function getStatusBadgeClass(status, isOverLimit) {
   if (status === "available") return "bg-emerald-100 text-emerald-700 border-emerald-200";
   if (status === "busy") return "bg-red-100 text-red-700 border-red-200";
@@ -57,6 +56,7 @@ function getStatusBadgeClass(status, isOverLimit) {
   return "bg-slate-100 text-slate-600 border-slate-200";
 }
 
+// Status dot color based on agent status and whether break time is over the limit
 function getStatusDotClass(status, isOverLimit) {
   if (status === "available") return "bg-emerald-500";
   if (status === "busy") return "bg-red-500";
@@ -64,6 +64,7 @@ function getStatusDotClass(status, isOverLimit) {
   return "bg-slate-400";
 }
 
+// Break button styles based on status and whether break time is over the limit
 function getBreakButtonClass(status, isOverLimit) {
   if (status === "busy") return "text-slate-300 border-slate-100 bg-slate-50 cursor-not-allowed";
   if (status === "break") return isOverLimit
@@ -72,15 +73,14 @@ function getBreakButtonClass(status, isOverLimit) {
   return "text-yellow-600 bg-yellow-50 border-yellow-200 hover:bg-yellow-100";
 }
 
+// Button label based on status and whether break time is over the limit
 function getBreakButtonLabel(status, isOverLimit) {
   if (status === "busy") return "On Call";
   if (status === "break") return isOverLimit ? "⚠️ Resume Now" : "▶ Resume";
   return "⏸ Break";
 }
 
-// ─────────────────────────────────────────────
-// AGENT ROW
-// ─────────────────────────────────────────────
+// Agent row component - displays individual agnent info and actions
 function AgentRow({ agent, onToggleBreak, onViewLogs, onForceLogout }) {
   const elapsed = useBreakTimer(agent.status, agent.breakStartTime);
   const isBreak = agent.status === "break";
@@ -184,6 +184,8 @@ function AgentRow({ agent, onToggleBreak, onViewLogs, onForceLogout }) {
 // AGENTS PANEL — main export
 // ─────────────────────────────────────────────
 export default function AgentsPanel({ agents = [], availableCount = 0, onToggleBreak, onViewLogs, onAssign, onForceLogout }) {
+
+  // How many agents have been on break for over the limit? (for header warning badge)
   const overLimitCount = agents.filter(a => {
     if (a.status !== "break" || !a.breakStartTime) return false;
     return (Date.now() - new Date(a.breakStartTime).getTime()) / 1000 > BREAK_LIMIT_SECONDS;

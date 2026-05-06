@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Agent from "../models/Agent.js";
-import { io } from "../../server.js"; 
+import { io } from "../../server.js";
+import { rebalanceCalls } from "./callController.js";  // ✅ NEW import
 
 // ─── Create agent ─────────────────────────────────────────────
 export const createAgent = async (req, res) => {
@@ -22,7 +23,7 @@ export const createAgent = async (req, res) => {
 
     const agent = await Agent.create({
       name: name.trim(),
-      status: "offline", // ✅ FIX 1: was "available" — caused Agent 4 to show online without login
+      status: "offline",
       lastCallTime: null,
       linkedUser: req.user._id
     });
@@ -35,7 +36,6 @@ export const createAgent = async (req, res) => {
 };
 
 // ─── Login agent ─────────────────────────────────────────────
-// ✅ FIX 2: This function was completely missing — loginTime never set, loginHistory never pushed
 export const loginAgent = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -52,8 +52,13 @@ export const loginAgent = async (req, res) => {
 
     agent.status = "available";
     agent.loginTime = new Date();
-
+    agent.loginHistory.push({ loginTime: agent.loginTime });
     await agent.save();
+
+    // ✅ New agent login ஆனா — pending incoming calls distribute ஆகும்
+    await rebalanceCalls();
+
+    io?.emit("agentUpdated");
 
     res.json({ success: true, data: agent });
 
@@ -86,19 +91,22 @@ export const logoutAgent = async (req, res) => {
     const diff = Math.max(0, now - new Date(agent.loginTime));
     const durationMinutes = Math.floor(diff / 1000 / 60);
 
-    // ✅ Push complete session to loginHistory
-    agent.loginHistory.push({
-      loginTime: agent.loginTime,
-      logoutTime: now,        // ← this is why logout time wasn't showing
-      durationMinutes
-    });
+    // Update last loginHistory entry with logout time
+    const lastIdx = agent.loginHistory.length - 1;
+    if (lastIdx >= 0) {
+      agent.loginHistory[lastIdx].logoutTime      = now;
+      agent.loginHistory[lastIdx].durationMinutes = durationMinutes;
+    } else {
+      agent.loginHistory.push({ loginTime: agent.loginTime, logoutTime: now, durationMinutes });
+    }
 
-    // Reset fields
-    agent.loginTime = null;
-    agent.status = "offline";
+    agent.loginTime      = null;
+    agent.status         = "offline";
     agent.breakStartTime = null;
 
     await agent.save();
+
+    io?.emit("agentUpdated");
 
     res.json({ success: true });
 
@@ -132,28 +140,27 @@ export const toggleBreak = async (req, res) => {
 
     if (agent.status === "break") {
       if (!agent.breakStartTime) {
-        console.warn(`Agent ${id} breakStartTime missing — resetting`);
-        updateData.status = "available";
+        updateData.status         = "available";
         updateData.breakStartTime = null;
       } else {
-        const now = new Date();
-        const breakDurationMs = now - new Date(agent.breakStartTime);
+        const now              = new Date();
+        const breakDurationMs  = now - new Date(agent.breakStartTime);
 
         if (breakDurationMs < 0) {
-          updateData.status = "available";
+          updateData.status         = "available";
           updateData.breakStartTime = null;
         } else {
           const breakDurationMinutes = Math.floor(breakDurationMs / 1000 / 60);
-          const safeMinutes = Math.min(breakDurationMinutes, 24 * 60);
+          const safeMinutes          = Math.min(breakDurationMinutes, 24 * 60);
 
-          updateData.status = "available";
-          updateData.breakStartTime = null;
+          updateData.status            = "available";
+          updateData.breakStartTime    = null;
           updateData.totalBreakMinutes = (agent.totalBreakMinutes || 0) + safeMinutes;
 
           breakLogEntry = {
-            breakStart: agent.breakStartTime,
-            breakEnd: now,
-            durationMinutes: safeMinutes
+            breakStart:       agent.breakStartTime,
+            breakEnd:         now,
+            durationMinutes:  safeMinutes
           };
         }
       }
@@ -161,7 +168,7 @@ export const toggleBreak = async (req, res) => {
       if (agent.status !== "available") {
         return res.status(400).json({ success: false, message: `Cannot start break from status: ${agent.status}` });
       }
-      updateData.status = "break";
+      updateData.status         = "break";
       updateData.breakStartTime = new Date();
     }
 
@@ -229,7 +236,7 @@ export const getMyAgent = async (req, res) => {
 // ─── Link user to agent ───────────────────────────────────────
 export const linkUserToAgent = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id }         = req.params;
     const { linkedUser } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -253,6 +260,7 @@ export const linkUserToAgent = async (req, res) => {
   }
 };
 
+// ─── Force logout ─────────────────────────────────────────────
 export const forceLogoutAgent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -263,54 +271,34 @@ export const forceLogoutAgent = async (req, res) => {
 
     const agent = await Agent.findById(id);
 
-    if (!agent) {
-      return res.status(404).json({ message: "Agent not found" });
-    }
+    if (!agent)                      return res.status(404).json({ message: "Agent not found" });
+    if (agent.status === "offline")  return res.status(400).json({ message: "Agent already offline" });
+    if (!agent.loginTime)            return res.status(400).json({ message: "Agent has no active login session" });
 
-    if (agent.status === "offline") {
-      return res.status(400).json({ message: "Agent already offline" });
-    }
-
-    if (!agent.loginTime) {
-      return res.status(400).json({ message: "Agent has no active login session" });
-    }
-
-    const now = new Date();
-    const diff = Math.max(0, now - new Date(agent.loginTime));
+    const now             = new Date();
+    const diff            = Math.max(0, now - new Date(agent.loginTime));
     const durationMinutes = Math.floor(diff / 1000 / 60);
 
-    //
-    agent.loginHistory.push({
-      loginTime: agent.loginTime,
-      logoutTime: now,
-      durationMinutes,
-    });
+    agent.loginHistory.push({ loginTime: agent.loginTime, logoutTime: now, durationMinutes });
 
-    // If agent was on break, also push break log for the ongoing break
     if (agent.status === "break" && agent.breakStartTime) {
-      const breakDurationMs = now - new Date(agent.breakStartTime);
+      const breakDurationMs      = now - new Date(agent.breakStartTime);
       const breakDurationMinutes = Math.max(0, Math.floor(breakDurationMs / 1000 / 60));
 
-      agent.breakLogs.push({
-        breakStart: agent.breakStartTime,
-        breakEnd: now,
-        durationMinutes: breakDurationMinutes,
-      });
-
+      agent.breakLogs.push({ breakStart: agent.breakStartTime, breakEnd: now, durationMinutes: breakDurationMinutes });
       agent.totalBreakMinutes = (agent.totalBreakMinutes || 0) + breakDurationMinutes;
     }
 
-    // Reset fields to log out the agent
-    agent.loginTime = null;
-    agent.status = "offline";
+    agent.loginTime      = null;
+    agent.status         = "offline";
     agent.breakStartTime = null;
 
     await agent.save();
 
-    // Emit socket event to notify all clients about the forced logout
-    io.emit("force-logout", { agentId: agent._id.toString() });
+    io?.emit("force-logout", { agentId: agent._id.toString() });
 
-    res.json({ success: true, data: agent }); // Return updated agent data for UI update
+    res.json({ success: true, data: agent });
+
   } catch (err) {
     console.error("Force logout error:", err);
     res.status(500).json({ message: "Force logout failed" });
