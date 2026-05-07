@@ -14,17 +14,20 @@ import { verifyToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+// Specific routes FIRST
 router.get("/break-logs", getBreakLogs);
 router.get("/me", verifyToken, getMyAgent);
+router.post("/loginagent", verifyToken, loginAgent);   
+router.post("/logoutagent", verifyToken, logoutAgent); 
 
+// Generic routes
 router.get("/", getAllAgents);
-router.post("/", verifyToken, createAgent);         //  verifyToken added
+router.post("/", verifyToken, createAgent);
+
+// Dynamic /:id routes LAST
 router.put("/:id/break", toggleBreak);
 router.patch("/:id/link-user", linkUserToAgent);
-
-router.post("/loginagent", verifyToken, loginAgent);   //  NEW — agent login route
-router.post("/logoutagent", verifyToken, logoutAgent);
-router.patch("/:id/force-logout", forceLogoutAgent);   // ← ADD THIS
+router.patch("/:id/force-logout", forceLogoutAgent);
 
 
 export default router;

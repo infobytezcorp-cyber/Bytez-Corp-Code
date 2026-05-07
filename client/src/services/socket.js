@@ -1,16 +1,24 @@
+
 import { io } from "socket.io-client";
 
-const URL = import.meta.env.VITE_API_URL;
+const URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:8000"
+).replace(/\/api$/, "");
 
 const socket = io(URL, {
-  transports: ["polling", "websocket"],
+  transports: ["websocket", "polling"],
   reconnection: true,
-  withCredentials: false,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,
-  extraHeaders: {
-    "ngrok-skip-browser-warning": "true",  // ← Add this
-  },
+  withCredentials: true,
+});
+
+socket.on("connect", () => {
+  console.log("✅ Socket connected:", socket.id);
+});
+
+socket.on("disconnect", (reason) => {
+  console.log("❌ Socket disconnected:", reason);
 });
 
 export default socket;

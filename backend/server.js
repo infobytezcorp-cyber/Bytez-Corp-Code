@@ -1,3 +1,4 @@
+
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -19,70 +20,119 @@ import enquiryRoutes from "./src/routes/enquiryRoutes.js";
 import callRoutes from "./src/routes/callRoutes.js";
 import agentRoutes from "./src/routes/agentRoutes.js";
 
-// ✅ NEW: missed call alert scheduler
 import { startMissedCallAlerts } from "./src/controllers/callController.js";
 
 const app = express();
 const server = http.createServer(app);
 
+// Socket.io
 export const io = new Server(server, {
   cors: {
-    origin: function (origin, callback) { callback(null, true); },
+    origin: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+    ],
     methods: ["GET", "POST"],
-    credentials: false,
+    credentials: true,
   },
 });
 
 io.on("connection", (socket) => {
   console.log("⚡ Client connected:", socket.id);
+
   socket.on("disconnect", (reason) => {
     console.log("❌ Client disconnected:", socket.id, reason);
   });
 });
 
-app.use(cors({
-  origin: function (origin, callback) { callback(null, true); },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
-  credentials: false,
-}));
+// CORS
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "ngrok-skip-browser-warning",
+    ],
+    credentials: true,
+  })
+);
 
-app.options(/.*/, cors());
+// Extra headers
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "http://localhost:5173");
+
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization, ngrok-skip-browser-warning"
+  );
+
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
-app.use("/api/auth",        authRoutes);
-app.use("/api/protected",   protectedRoutes);
-app.use("/api/users",       userRoutes);
-app.use("/api/otp",         otpRoutes);
-app.use("/api/visitor",     visitorRoutes);
+app.use(
+  express.urlencoded({
+    extended: true,
+  })
+);
+
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/protected", protectedRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/otp", otpRoutes);
+app.use("/api/visitor", visitorRoutes);
 app.use("/api/userdetails", detailsRoutes);
-app.use("/api/enquiries",   enquiryRoutes);
-app.use("/api/calls",       callRoutes);
-app.use("/api/agents",      agentRoutes);
+app.use("/api/enquiries", enquiryRoutes);
+app.use("/api/calls", callRoutes);
+app.use("/api/agents", agentRoutes);
 
+// Start Server
 const startServer = async () => {
   try {
     try {
       await connectDB();
-      console.log("MongoDB connected successfully");
+      console.log("✅ MongoDB connected successfully");
     } catch (mongoError) {
-      console.warn("MongoDB connection failed (optional):", mongoError.message);
-      console.log("Using SQLite fallback");
+      console.warn(
+        "⚠️ MongoDB connection failed:",
+        mongoError.message
+      );
+
+      console.log("🟡 Using SQLite fallback");
+
+      // await connectSQLiteDB();
     }
 
     const port = process.env.PORT || 8000;
 
     server.listen(port, "0.0.0.0", () => {
-      console.log(`Server running on port ${port}`);
+      console.log(`🚀 Server running on port ${port} `);
 
-      // ✅ NEW: start 1hr missed call alert — after server is ready
       startMissedCallAlerts();
+
       console.log("⏰ Missed call alert scheduler started");
     });
 
   } catch (error) {
-    console.error("Failed to start the server:", error.message);
+    console.error("❌ Failed to start server:", error.message);
     process.exit(1);
   }
 };

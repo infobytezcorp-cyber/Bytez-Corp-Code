@@ -9,24 +9,54 @@ import { io } from "../../server.js";
 // ─────────────────────────────────────────────────────────────
 export async function rebalanceCalls() {
   try {
-    const incomingCalls = await Call.find({ status: "incoming" }).sort({ createdAt: 1 });
+    const incomingCalls = await Call.find({
+      status: "incoming"
+    }).sort({ createdAt: 1 });
+
     if (incomingCalls.length === 0) return;
 
     for (const call of incomingCalls) {
+
+      // ✅ available agent → ringing
       const agent = await Agent.findOneAndUpdate(
         { status: "available" },
-        { $set: { status: "busy", lastCallTime: new Date() } },
-        { sort: { lastCallTime: 1 }, returnDocument: "after" }
+        {
+          $set: {
+            status: "ringing",
+            lastCallTime: new Date()
+          }
+        },
+        {
+          sort: { lastCallTime: 1 },
+          returnDocument: "after"
+        }
       );
+
       if (!agent) break;
 
+      // ✅ call only assigned, NOT started
       await Call.findByIdAndUpdate(call._id, {
-        $set: { agent: agent._id, assignedTo: agent._id, status: "assigned", startTime: new Date() }
+        $set: {
+          agent: agent._id,
+          assignedTo: agent._id,
+          status: "ringing"
+        }
       });
-      console.log(`✅ Rebalanced → ${agent.name}`);
+
+      // ✅ popup emit
+      io?.emit("incomingCall", {
+        callId: call._id,
+        agentId: agent._id,
+        agentName: agent.name,
+        phone: call.phone,
+        customerName: call.customerName
+      });
+
+      console.log(`📞 Ringing → ${agent.name}`);
     }
 
     io?.emit("callUpdated");
+
   } catch (err) {
     console.error("rebalanceCalls error:", err.message);
   }
@@ -45,7 +75,7 @@ export function startMissedCallAlerts() {
       const map = {};
       for (const c of missedCalls) {
         const name = c.assignedTo?.name || "Unassigned";
-        const id   = c.assignedTo?._id?.toString() || "unassigned";
+        const id = c.assignedTo?._id?.toString() || "unassigned";
         if (!map[id]) map[id] = { name, count: 0 };
         map[id].count++;
       }
@@ -75,8 +105,12 @@ export const createCall = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { number, type, contactId, autoAssign = true } = req.body;
+    const { number, type, contactId } = req.body;
+    let { autoAssign } = req.body;
     if (!number || !type) throw new Error("Number and type are required");
+    if (typeof autoAssign !== "boolean") {
+      autoAssign = type === "incoming" ? false : true;
+    }
 
     // Contact
     let contact;
@@ -91,7 +125,7 @@ export const createCall = async (req, res) => {
     }
 
     let assignedAgent = null;
-    let callStatus    = "incoming";
+    let callStatus = "incoming";
 
     if (autoAssign) {
       // Try available agent first
@@ -111,7 +145,7 @@ export const createCall = async (req, res) => {
 
         if (busyAgent) {
           assignedAgent = busyAgent;
-          callStatus    = "missed";
+          callStatus = "missed";
           await Agent.findByIdAndUpdate(
             busyAgent._id,
             { $set: { lastCallTime: new Date() } },
@@ -123,17 +157,32 @@ export const createCall = async (req, res) => {
           console.log("⚠️ No agents online");
         }
       }
+    } else {
+      // autoAssign=false → ring the next available agent instead of direct assignment
+      assignedAgent = await Agent.findOneAndUpdate(
+        { status: "available" },
+        { $set: { status: "ringing", lastCallTime: new Date() } },
+        { sort: { lastCallTime: 1 }, returnDocument: "after", session }
+      );
+
+      if (assignedAgent) {
+        callStatus = "ringing";
+        console.log(`📞 Ringing → ${assignedAgent.name}`);
+      } else {
+        callStatus = "incoming";
+        console.log("⚠️ No agents online");
+      }
     }
 
     const [call] = await Call.create([{
       number,
       type,
-      agent:      assignedAgent?._id || null,
+      agent: assignedAgent?._id || null,
       assignedTo: assignedAgent?._id || null,
-      contact:    contact?._id || null,
-      status:     callStatus,
+      contact: contact?._id || null,
+      status: callStatus,
       autoAssign,
-      startTime:  assignedAgent ? new Date() : null,
+      startTime: assignedAgent && callStatus === "assigned" ? new Date() : null,
     }], { session });
 
     await session.commitTransaction();
@@ -158,9 +207,9 @@ export const createCall = async (req, res) => {
           } else {
             const anyAgent = await Agent.findOne().sort({ lastCallTime: 1 });
             existing.status = "missed";
-            existing.agent      = anyAgent?._id || null;
+            existing.agent = anyAgent?._id || null;
             existing.assignedTo = anyAgent?._id || null;
-            existing.startTime  = new Date();
+            existing.startTime = new Date();
             if (anyAgent) await Agent.findByIdAndUpdate(anyAgent._id, { $set: { lastCallTime: new Date() } });
           }
 
@@ -170,6 +219,16 @@ export const createCall = async (req, res) => {
           console.error("Auto-miss error:", err.message);
         }
       }, 20000);
+    }
+
+    if (callStatus === "ringing") {
+      io?.emit("incomingCall", {
+        callId: call._id,
+        agentId: assignedAgent._id,
+        agentName: assignedAgent.name,
+        phone: call.number,
+        customerName: contact?.name || "Unknown",
+      });
     }
 
     io?.emit("callUpdated");
@@ -190,16 +249,16 @@ export const endCall = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { id }     = req.params;
+    const { id } = req.params;
     const { remark } = req.body || {};
 
     if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid call ID");
 
     const call = await Call.findById(id).session(session);
-    if (!call)                       throw new Error("Call not found");
+    if (!call) throw new Error("Call not found");
     if (call.status === "completed") throw new Error("Already ended");
 
-    const endTime     = new Date();
+    const endTime = new Date();
     const durationSec = call.startTime
       ? Math.floor((endTime - new Date(call.startTime)) / 1000) : 0;
 
@@ -224,7 +283,7 @@ export const endCall = async (req, res) => {
     if (call.contact && call.startTime) {
       await Contact.findByIdAndUpdate(call.contact, {
         $push: { callLogs: { agent: call.agent, calledAt: call.startTime, duration: durationSec, status: "completed", remark: remark || "" } },
-        $set:  { status: "called" }
+        $set: { status: "called" }
       }, { session });
     }
 
@@ -250,22 +309,106 @@ export const assignCall = async (req, res) => {
 
     if (!mongoose.Types.ObjectId.isValid(id))
       return res.status(400).json({ success: false, message: "Invalid call ID" });
-    if (!agentId)
-      return res.status(400).json({ success: false, message: "Agent ID required" });
+    if (!mongoose.Types.ObjectId.isValid(agentId))
+      return res.status(400).json({ success: false, message: "Invalid agent ID" });
+
+    const agent = await Agent.findById(agentId);
+    if (!agent) return res.status(404).json({ success: false, message: "Agent not found" });
 
     const call = await Call.findById(id);
     if (!call) return res.status(404).json({ success: false, message: "Call not found" });
 
-    call.agent = agentId; call.assignedTo = agentId;
-    call.status = "missed"; call.startTime = new Date();
+    call.agent = agentId;
+    call.assignedTo = agentId;
+    call.status = "assigned";
+    call.startTime = new Date();
     await call.save();
 
-    await Agent.findByIdAndUpdate(agentId, { $set: { lastCallTime: new Date() } });
+    await Agent.findByIdAndUpdate(agentId, { $set: { status: "busy", lastCallTime: new Date() } });
 
     io?.emit("callUpdated");
     return res.status(200).json({ success: true, data: call });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const acceptIncomingCall = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?._id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ success: false, message: "Invalid call ID" });
+  }
+
+  try {
+    const call = await Call.findById(id);
+    if (!call) {
+      return res.status(404).json({ success: false, message: "Call not found" });
+    }
+
+    if (call.status !== "ringing") {
+      return res.status(400).json({ success: false, message: "Call is not ringing" });
+    }
+
+    const agent = await Agent.findOne({ linkedUser: userId });
+    if (!agent || !call.assignedTo || call.assignedTo.toString() !== agent._id.toString()) {
+      return res.status(403).json({ success: false, message: "Not authorized to accept this call" });
+    }
+
+    call.status = "assigned";
+    call.startTime = call.startTime || new Date();
+    await call.save();
+
+    agent.status = "busy";
+    agent.lastCallTime = new Date();
+    await agent.save();
+
+    io?.emit("callUpdated");
+
+    return res.status(200).json({ success: true, data: call });
+  } catch (error) {
+    console.error("acceptIncomingCall error:", error.message);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const rejectIncomingCall = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user?._id;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ success: false, message: "Invalid call ID" });
+  }
+
+  try {
+    const call = await Call.findById(id);
+    if (!call) {
+      return res.status(404).json({ success: false, message: "Call not found" });
+    }
+
+    if (call.status !== "ringing") {
+      return res.status(400).json({ success: false, message: "Call is not ringing" });
+    }
+
+    const agent = await Agent.findOne({ linkedUser: userId });
+    if (!agent || !call.assignedTo || call.assignedTo.toString() !== agent._id.toString()) {
+      return res.status(403).json({ success: false, message: "Not authorized to reject this call" });
+    }
+
+    call.status = "missed";
+    call.endTime = new Date();
+    await call.save();
+
+    agent.status = "available";
+    await agent.save();
+
+    io?.emit("callUpdated");
+
+    return res.status(200).json({ success: true, data: call });
+  } catch (error) {
+    console.error("rejectIncomingCall error:", error.message);
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
@@ -345,17 +488,17 @@ export const getAllCalls = async (req, res) => {
     const { date, status, agentId } = req.query;
     const filter = {};
     if (date) {
-      const start = new Date(date); start.setHours(0,0,0,0);
-      const end   = new Date(date); end.setHours(23,59,59,999);
+      const start = new Date(date); start.setHours(0, 0, 0, 0);
+      const end = new Date(date); end.setHours(23, 59, 59, 999);
       filter.createdAt = { $gte: start, $lte: end };
     }
-    if (status)  filter.status = status;
-    if (agentId) filter.agent  = agentId;
+    if (status) filter.status = status;
+    if (agentId) filter.agent = agentId;
 
     const calls = await Call.find(filter)
-      .populate("agent",      "name status")
+      .populate("agent", "name status")
       .populate("assignedTo", "name")
-      .populate("contact",    "name phone")
+      .populate("contact", "name phone")
       .sort({ createdAt: -1 }).limit(200);
 
     res.status(200).json({ success: true, data: calls });
@@ -373,10 +516,10 @@ export const getMyMissedCalls = async (req, res) => {
     if (!agent) return res.status(404).json({ success: false, message: "Agent not found" });
 
     const { date } = req.query;
-    const filter   = { assignedTo: agent._id, status: "missed" };
+    const filter = { assignedTo: agent._id, status: "missed" };
     if (date) {
-      const start = new Date(date); start.setHours(0,0,0,0);
-      const end   = new Date(date); end.setHours(23,59,59,999);
+      const start = new Date(date); start.setHours(0, 0, 0, 0);
+      const end = new Date(date); end.setHours(23, 59, 59, 999);
       filter.createdAt = { $gte: start, $lte: end };
     }
 
@@ -400,11 +543,11 @@ export const getMyCallLogs = async (req, res) => {
     if (from || to) {
       filter.createdAt = {};
       if (from) filter.createdAt.$gte = new Date(from);
-      if (to)   { const d = new Date(to); d.setHours(23,59,59,999); filter.createdAt.$lte = d; }
+      if (to) { const d = new Date(to); d.setHours(23, 59, 59, 999); filter.createdAt.$lte = d; }
     }
 
     const calls = await Call.find(filter).populate("contact", "name phone").sort({ createdAt: -1 }).limit(100);
-    const today = new Date(); today.setHours(0,0,0,0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayCalls = calls.filter(c => new Date(c.createdAt) >= today);
 
     res.status(200).json({
@@ -414,7 +557,7 @@ export const getMyCallLogs = async (req, res) => {
         stats: {
           filtered: calls.length, today: todayCalls.length,
           answered: calls.filter(c => c.status === "completed").length,
-          missed:   calls.filter(c => c.status === "missed").length,
+          missed: calls.filter(c => c.status === "missed").length,
         }
       }
     });
@@ -445,7 +588,7 @@ export const exotelWebhook = async (req, res) => {
           const dur = Math.floor((call.endTime - new Date(call.startTime)) / 1000);
           await Contact.findByIdAndUpdate(call.contact, {
             $push: { callLogs: { agent: call.agent, calledAt: call.startTime, duration: dur, status: "completed", exotelSid: CallSid } },
-            $set:  { status: "called" }
+            $set: { status: "called" }
           }, { session });
         }
         await session.commitTransaction(); session.endSession();

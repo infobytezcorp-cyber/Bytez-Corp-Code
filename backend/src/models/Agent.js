@@ -6,7 +6,7 @@ const agentSchema = new mongoose.Schema({
   name: String,
   status: {
     type: String,
-    enum: ["offline", "busy", "break", "available"],
+    enum: ["offline", "busy", "break", "available", "ringing"],
     default: "offline"
   },
   linkedUser: {
@@ -14,6 +14,7 @@ const agentSchema = new mongoose.Schema({
     ref: "User",
     default: null
   },
+  phone: String,
   lastCallTime: {
     type: Date,
     default: null

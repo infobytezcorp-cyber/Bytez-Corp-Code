@@ -11,19 +11,16 @@ const callSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["incoming", "assigned", "in_progress", "completed", "missed", "callback_done"],
+      enum: ["incoming", "ringing", "assigned", "in_progress", "completed", "missed", "callback_done"],
       default: "incoming"
     },
 
-    // Current agent handling the call
     agent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Agent",
       default: null
     },
 
-    // ← NEW: Original agent the call was assigned to
-    // Even if call becomes missed, this field retains who was responsible
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Agent",
@@ -46,21 +43,24 @@ const callSchema = new mongoose.Schema(
       default: null
     },
 
-    startTime: {
-      type: Date,
-      default: Date.now
-    },
+    // ── Recording ──
+    recordingUrl:      { type: String, default: null },  // Twilio recording URL
+    recordingSid:      { type: String, default: null },  // Twilio RecordingSid
+    recordingDuration: { type: Number, default: null },  // seconds
 
-    endTime: Date,
-    duration: Number
+    startTime: { type: Date, default: Date.now },
+    endTime:   Date,
+    duration:  Number,
+
+    callbackAt: Date,
   },
   { timestamps: true }
 );
 
 callSchema.index({ status: 1 });
 callSchema.index({ agent: 1 });
-callSchema.index({ assignedTo: 1 });   // ← index for missed call queries
+callSchema.index({ assignedTo: 1 });
 callSchema.index({ contact: 1 });
-callSchema.index({ createdAt: -1 });   // ← for day-wise filtering
+callSchema.index({ createdAt: -1 });
 
 export default mongoose.model("Call", callSchema);
