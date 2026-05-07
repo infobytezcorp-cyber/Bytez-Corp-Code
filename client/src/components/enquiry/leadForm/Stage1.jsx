@@ -76,11 +76,10 @@ const Stage1 = ({
     }
   };
 
-  const today = new Date().toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  // input[type=date] requires yyyy-MM-dd format
+  const pad = (n) => String(n).padStart(2, '0');
+  const now = new Date();
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
   const tagClass = (selected) =>
     `rounded-full border px-3 py-1.5 text-sm transition ${
@@ -170,16 +169,16 @@ const Stage1 = ({
                   className=" rounded-xl border border-stone-300 bg-white text-sm text-stone-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
                 >
                   {[
-                    { label: '+91' },
-                    { label: '+1' },
-                    { label: '+44' },
-                    { label: '+61' },
-                    { label: '+971' },
-                  ].map((code) => (
-                    <option key={code.value} value={code.value}>
-                      {code.label}
-                    </option>
-                  ))}
+                      { label: '+91' },
+                      { label: '+1' },
+                      { label: '+44' },
+                      { label: '+61' },
+                      { label: '+971' },
+                    ].map((code) => (
+                      <option key={code.label} value={code.label}>
+                        {code.label}
+                      </option>
+                    ))}
                 </select>
                 <FormInput
                   id="s1_phone"

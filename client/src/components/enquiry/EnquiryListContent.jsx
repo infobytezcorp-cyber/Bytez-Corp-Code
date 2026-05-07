@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, BarChart, Ba
 import { fetchEnquiries, setFilters, updateEnquiry } from '../../features/enquirySlice';
 import { ENQUIRY_STAGES, ENQUIRY_LEADS } from '../../constants/enquiryConstants';
 import EnquiryDetailModal from './EnquiryDetailModal';
-import Sidebar from '../dashboards/visitors/Sidebar';
+import Sidebar from '../dashboards/Sidebar';
 
 const EnquiryListContent = () => {
   const dispatch = useDispatch();
@@ -690,11 +690,11 @@ const EnquiryListContent = () => {
               {/* Stats Grid - Main Overview */}
               <div>
                 <p className="text-sm font-medium text-gray-600 mb-2">
-                  {activeLeadTab === 'all' && 'All Leads Statistics'}
+                  {activeLeadTab === 'all' && 'All Stages Statistics'}
                   {activeLeadTab === 'online' && 'Online Leads Statistics'}
                   {activeLeadTab === 'offline' && 'Offline Leads Statistics'}
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="text-sm font-bold text-slate-700 mt-6 mb-2 uppercase tracking-wider grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                   <StatCard
                     title="Total Enquiries"
                     value={filteredStats.total}
@@ -729,7 +729,7 @@ const EnquiryListContent = () => {
               </div>
 
               {/* Charts Section - Changes based on active tab */}
-              <div className="mb-8">
+              <div className="mb-8 text-sm font-bold text-slate-700 mt-6 mb-2 uppercase tracking-wider">
                 {activeLeadTab === 'all' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <LeadDistributionChart />
@@ -749,8 +749,8 @@ const EnquiryListContent = () => {
               </div>
 
               {/* Filters Section - Column Wise Design */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-8 ">
+                <h3 className="text-lg text-sm font-bold text-slate-700  uppercase tracking-wider mb-4">Filters</h3>
                 {/* Changed grid-cols-3 to grid-cols-4 to fit the new filter */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Stage Filter */}

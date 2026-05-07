@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Sidebar from '../dashboards/visitors/Sidebar';
+import Sidebar from '../dashboards/Sidebar';
 import LeadsAndCalls from './callcenter/LeadsAndCalls';
 import MissedCalls from './callcenter/MissedCalls';
 import Recordings from './callcenter/Recordings';

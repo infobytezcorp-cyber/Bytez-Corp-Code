@@ -11,7 +11,7 @@ import { SRC_MAP, getServiceById } from './LeadFormConstants';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://307c-2406-7400-ff03-198-9c9d-16ec-176f-1b18.ngrok-free.app';
 
-const LeadForm = () => {
+const LeadForm = ({ initialAssignedToId, initialAgentName, initialPhone, onSaved }) => {
   const dispatch = useDispatch();
 
   // Form state
@@ -27,6 +27,7 @@ const LeadForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
+  const [assignedToId, setAssignedToId] = useState(null);
 
 const openBusinessWhatsApp = async () => {
     const SANDBOX_NUMBER = import.meta.env.VITE_WHATSAPP_BUSINESS || '14155238886';
@@ -216,6 +217,8 @@ const openBusinessWhatsApp = async () => {
           date: new Date().toISOString(),
         },
       ],
+      assignedTo: assignedToId || undefined,
+      assignedAt: assignedToId ? new Date().toISOString() : undefined,
     };
   };
 
@@ -486,6 +489,11 @@ const openBusinessWhatsApp = async () => {
       // Refresh enquiries list after successful enrollment
       setTimeout(() => {
         dispatch(fetchEnquiries());
+        try {
+          if (onSaved) onSaved({ mongoId: formData.mongoId, status: 'enrolled' });
+        } catch (err) {
+          // ignore
+        }
       }, 1000);
     } catch (err) {
       console.error('Stage 3 API error:', err);
@@ -552,6 +560,48 @@ const openBusinessWhatsApp = async () => {
         return null;
     }
   };
+
+  // Read URL params for prefill (agent invoked from telecaller workspace)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const agentId = params.get('agentId');
+      const agentName = params.get('agentName');
+      const phone = params.get('phone');
+
+      if (agentId) setAssignedToId(agentId);
+
+      if (agentId || agentName || phone) {
+        setFormData((prev) => ({
+          ...prev,
+          s1: {
+            ...prev.s1,
+            agentid: agentId || prev.s1.agentid,
+            telecaller: agentName || prev.s1.telecaller,
+            phone: phone ? String(phone).replace(/\D/g, '').slice(-10) : prev.s1.phone,
+          },
+        }));
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, []);
+
+  // Prefill from props (when rendered inside telecaller modal)
+  useEffect(() => {
+    if (initialAssignedToId || initialAgentName || initialPhone) {
+      if (initialAssignedToId) setAssignedToId(initialAssignedToId);
+      setFormData((prev) => ({
+        ...prev,
+        s1: {
+          ...prev.s1,
+          agentid: initialAssignedToId || prev.s1.agentid,
+          telecaller: initialAgentName || prev.s1.telecaller,
+          phone: initialPhone ? String(initialPhone).replace(/\D/g, '').slice(-10) : prev.s1.phone,
+        },
+      }));
+    }
+  }, [initialAssignedToId, initialAgentName, initialPhone]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-100 via-stone-50 to-white px-3 py-6 text-stone-900 sm:px-4 sm:py-10">

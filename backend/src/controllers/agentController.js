@@ -1,194 +1,199 @@
 import mongoose from "mongoose";
 import Agent from "../models/Agent.js";
+import { io } from "../../server.js";
+import { rebalanceCalls } from "./callController.js";  // ✅ NEW import
 
 // ─── Create agent ─────────────────────────────────────────────
 export const createAgent = async (req, res) => {
   try {
     const { name } = req.body;
 
-    // validation
     if (!name || name.trim() === "") {
-      return res.status(400).json({
-        success: false,
-        message: "Agent name is required"
-      });
+      return res.status(400).json({ success: false, message: "Agent name is required" });
     }
 
-    // check user exists?
     if (!req.user?._id) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized"
-      });
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // check if agent already exists for this user
     const existing = await Agent.findOne({ linkedUser: req.user._id });
-
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: "Agent already exists for this user"
-      });
+      return res.status(400).json({ success: false, message: "Agent already exists for this user" });
     }
 
-    // create agent with auto link
     const agent = await Agent.create({
       name: name.trim(),
-      status: "available",
+      status: "offline",
       lastCallTime: null,
-      linkedUser: req.user._id   // AUTO LINK
+      linkedUser: req.user._id
     });
 
-    res.status(201).json({
-      success: true,
-      data: agent
-    });
+    res.status(201).json({ success: true, data: agent });
 
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ─── Toggle break ────
+// ─── Login agent ─────────────────────────────────────────────
+export const loginAgent = async (req, res) => {
+  try {
+    const userId = req.user._id;
 
+    const agent = await Agent.findOne({ linkedUser: userId });
+
+    if (!agent) {
+      return res.status(404).json({ success: false, message: "Agent not found" });
+    }
+
+    if (agent.status !== "offline") {
+      return res.status(400).json({ success: false, message: "Agent already logged in" });
+    }
+
+    agent.status = "available";
+    agent.loginTime = new Date();
+    agent.loginHistory.push({ loginTime: agent.loginTime });
+    await agent.save();
+
+    // ✅ New agent login ஆனா — pending incoming calls distribute ஆகும்
+    await rebalanceCalls();
+
+    io?.emit("agentUpdated");
+
+    res.json({ success: true, data: agent });
+
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ success: false, message: "Login failed" });
+  }
+};
+
+// ─── Logout agent ─────────────────────────────────────────────
+export const logoutAgent = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const agent = await Agent.findOne({ linkedUser: userId });
+
+    if (!agent) {
+      return res.status(404).json({ message: "Agent not found" });
+    }
+
+    if (!agent.loginTime) {
+      return res.status(400).json({ message: "Agent not logged in" });
+    }
+
+    if (agent.status === "offline") {
+      return res.status(400).json({ message: "Agent already logged out" });
+    }
+
+    const now = new Date();
+    const diff = Math.max(0, now - new Date(agent.loginTime));
+    const durationMinutes = Math.floor(diff / 1000 / 60);
+
+    // Update last loginHistory entry with logout time
+    const lastIdx = agent.loginHistory.length - 1;
+    if (lastIdx >= 0) {
+      agent.loginHistory[lastIdx].logoutTime      = now;
+      agent.loginHistory[lastIdx].durationMinutes = durationMinutes;
+    } else {
+      agent.loginHistory.push({ loginTime: agent.loginTime, logoutTime: now, durationMinutes });
+    }
+
+    agent.loginTime      = null;
+    agent.status         = "offline";
+    agent.breakStartTime = null;
+
+    await agent.save();
+
+    io?.emit("agentUpdated");
+
+    res.json({ success: true });
+
+  } catch (err) {
+    console.error("Logout error:", err);
+    res.status(500).json({ message: "Logout failed" });
+  }
+};
+
+// ─── Toggle break ─────────────────────────────────────────────
 export const toggleBreak = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // ── Validate ID ─────────────────────────
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid agent ID"
-      });
+      return res.status(400).json({ success: false, message: "Invalid agent ID" });
     }
 
     const agent = await Agent.findById(id);
 
     if (!agent) {
-      return res.status(404).json({
-        success: false,
-        message: "Agent not found"
-      });
+      return res.status(404).json({ success: false, message: "Agent not found" });
     }
 
-    // ── Prevent break during call ──────
     if (agent.status === "busy") {
-      return res.status(400).json({
-        success: false,
-        message: "Agent is on a call"
-      });
+      return res.status(400).json({ success: false, message: "Agent is on a call" });
     }
 
     const updateData = {};
     let breakLogEntry = null;
 
-    //  END BREAK
     if (agent.status === "break") {
-
       if (!agent.breakStartTime) {
-        console.warn(`Agent ${id} breakStartTime missing — resetting`);
-
-        updateData.status = "available";
+        updateData.status         = "available";
         updateData.breakStartTime = null;
-
       } else {
-        const breakStartTime = agent.breakStartTime;
-        const now = new Date();
+        const now              = new Date();
+        const breakDurationMs  = now - new Date(agent.breakStartTime);
 
-        const breakDurationMs = now - new Date(breakStartTime);
-
-        // Safety check
         if (breakDurationMs < 0) {
-          console.warn(`Negative break duration for agent ${id}`);
-
-          updateData.status = "available";
+          updateData.status         = "available";
           updateData.breakStartTime = null;
-
         } else {
           const breakDurationMinutes = Math.floor(breakDurationMs / 1000 / 60);
+          const safeMinutes          = Math.min(breakDurationMinutes, 24 * 60);
 
-          //  Max limit protection (1 day)
-          const MAX_BREAK_MINUTES = 24 * 60;
-          const safeMinutes = Math.min(breakDurationMinutes, MAX_BREAK_MINUTES);
+          updateData.status            = "available";
+          updateData.breakStartTime    = null;
+          updateData.totalBreakMinutes = (agent.totalBreakMinutes || 0) + safeMinutes;
 
-          updateData.status = "available";
-          updateData.breakStartTime = null;
-
-          //  total break tracker
-          updateData.totalBreakMinutes =
-            (agent.totalBreakMinutes || 0) + safeMinutes;
-
-          //  Create log entry (SAFE)
           breakLogEntry = {
-            breakStart: breakStartTime,
-            breakEnd: now,
-            durationMinutes: safeMinutes
+            breakStart:       agent.breakStartTime,
+            breakEnd:         now,
+            durationMinutes:  safeMinutes
           };
         }
       }
-
-      // =========================================================
-      //  START BREAK
-      // =========================================================
     } else {
-
       if (agent.status !== "available") {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot start break from status: ${agent.status}`
-        });
+        return res.status(400).json({ success: false, message: `Cannot start break from status: ${agent.status}` });
       }
-
-      updateData.status = "break";
+      updateData.status         = "break";
       updateData.breakStartTime = new Date();
     }
 
-    //  FINAL UPDATE
     const updated = await Agent.findByIdAndUpdate(
       id,
       {
         $set: updateData,
-        ...(breakLogEntry && {
-          $push: { breakLogs: breakLogEntry }
-        })
+        ...(breakLogEntry && { $push: { breakLogs: breakLogEntry } })
       },
-      {
-        returnDocument: "after", //  FIXED (no deprecation)
-        runValidators: true
-      }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!updated) {
-      return res.status(500).json({
-        success: false,
-        message: "Failed to update agent"
-      });
+      return res.status(500).json({ success: false, message: "Failed to update agent" });
     }
 
-    return res.status(200).json({
-      success: true,
-      data: updated
-    });
+    return res.status(200).json({ success: true, data: updated });
 
   } catch (error) {
     console.error("toggleBreak error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      ...(process.env.NODE_ENV !== "production" && {
-        debug: error.message
-      })
-    });
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-// ─── Get all agents (admin dashboard) ────────────────────────
+// ─── Get all agents ───────────────────────────────────────────
 export const getAllAgents = async (req, res) => {
   try {
     const agents = await Agent.find().sort({ createdAt: -1 });
@@ -198,20 +203,17 @@ export const getAllAgents = async (req, res) => {
   }
 };
 
-// ─── Get break logs (admin time logs tab) ────────────────────
+// ─── Get break logs ───────────────────────────────────────────
 export const getBreakLogs = async (req, res) => {
   try {
-    const agents = await Agent.find(
-      {},
-      "name totalBreakMinutes breakStartTime status breakLogs"
-    );
+    const agents = await Agent.find({}, "name totalBreakMinutes breakStartTime status breakLogs");
     res.status(200).json({ success: true, data: agents });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ─── Get MY agent record (agent's own dashboard) ─────────────
+// ─── Get my agent ─────────────────────────────────────────────
 export const getMyAgent = async (req, res) => {
   try {
     if (!req.user?._id) {
@@ -221,28 +223,20 @@ export const getMyAgent = async (req, res) => {
     const agent = await Agent.findOne({ linkedUser: req.user._id });
 
     if (!agent) {
-      return res.status(404).json({
-        success: false,
-        message: "No agent profile linked to your account"
-      });
+      return res.status(404).json({ success: false, message: "No agent profile linked to your account" });
     }
 
     res.json({ success: true, data: agent });
 
   } catch (error) {
-    console.error("getMyAgent error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      ...(process.env.NODE_ENV !== "production" && { debug: error.message })
-    });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-// ─── Link user to agent (admin use) ──────────────────────────
+// ─── Link user to agent ───────────────────────────────────────
 export const linkUserToAgent = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id }         = req.params;
     const { linkedUser } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -266,43 +260,47 @@ export const linkUserToAgent = async (req, res) => {
   }
 };
 
-
-export const logoutAgent = async (req, res) => {
+// ─── Force logout ─────────────────────────────────────────────
+export const forceLogoutAgent = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const { id } = req.params;
 
-    const agent = await Agent.findOne({ linkedUser: userId });
-
-    if (!agent) {
-      return res.status(404).json({ message: "Agent not found" });
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid agent ID" });
     }
 
-    if (!agent.loginTime) {
-      return res.status(400).json({ message: "Agent not logged in" });
-    }
+    const agent = await Agent.findById(id);
 
-    const now = new Date();
+    if (!agent)                      return res.status(404).json({ message: "Agent not found" });
+    if (agent.status === "offline")  return res.status(400).json({ message: "Agent already offline" });
+    if (!agent.loginTime)            return res.status(400).json({ message: "Agent has no active login session" });
 
-    const diff = Math.max(0, now - new Date(agent.loginTime));
+    const now             = new Date();
+    const diff            = Math.max(0, now - new Date(agent.loginTime));
     const durationMinutes = Math.floor(diff / 1000 / 60);
 
-    // push history
-    agent.loginHistory.push({
-      loginTime: agent.loginTime,
-      logoutTime: now,
-      durationMinutes
-    });
+    agent.loginHistory.push({ loginTime: agent.loginTime, logoutTime: now, durationMinutes });
 
-    // reset fields
-    agent.loginTime = null;
-    agent.status = "offline";
+    if (agent.status === "break" && agent.breakStartTime) {
+      const breakDurationMs      = now - new Date(agent.breakStartTime);
+      const breakDurationMinutes = Math.max(0, Math.floor(breakDurationMs / 1000 / 60));
+
+      agent.breakLogs.push({ breakStart: agent.breakStartTime, breakEnd: now, durationMinutes: breakDurationMinutes });
+      agent.totalBreakMinutes = (agent.totalBreakMinutes || 0) + breakDurationMinutes;
+    }
+
+    agent.loginTime      = null;
+    agent.status         = "offline";
+    agent.breakStartTime = null;
 
     await agent.save();
 
-    res.json({ success: true });
+    io?.emit("force-logout", { agentId: agent._id.toString() });
+
+    res.json({ success: true, data: agent });
 
   } catch (err) {
-    console.error("Logout error:", err);
-    res.status(500).json({ message: "Logout failed" });
+    console.error("Force logout error:", err);
+    res.status(500).json({ message: "Force logout failed" });
   }
 };

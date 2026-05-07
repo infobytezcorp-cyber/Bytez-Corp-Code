@@ -32,7 +32,7 @@ export const register = async (req, res) => {
       await Agent.create({
         name: user.name,
         linkedUser: user._id,
-        status: "available"
+        status: "offline"
       });
     }
 
@@ -70,11 +70,14 @@ export const login = async (req, res) => {
     );
 
     if (user.role === "telecaller") {
+      const now = new Date();
       await Agent.findOneAndUpdate(
         { linkedUser: user._id },
         {
-          loginTime: new Date(),
-          status: "available"
+          $set: {
+            loginTime: now,
+            status: "available"
+          }
         },
         { returnDocument: "after" }
       );

@@ -1,9 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import path from "path";
-import { fileURLToPath } from "url";
-
 import express from "express";
 import cors from "cors";
 import http from "http";
@@ -25,55 +22,47 @@ import hrRoutes from "./src/routes/hrRoutes.js";
 import tasksRoutes from "./src/routes/tasks.js";
 import twilioRoutes from './src/routes/twilioRoutes.js';
 import whatsAppLeadRoutes from './src/routes/whatsAppLeadRoutes.js';
+import trendsRoutes from './src/routes/trendsRoutes.js';
 
+
+// ✅ NEW: missed call alert scheduler
+import { startMissedCallAlerts } from "./src/controllers/callController.js";
 
 const app = express();
-
-// CREATE HTTP SERVER (IMPORTANT)
 const server = http.createServer(app);
 
-// SOCKET.IO SETUP
 export const io = new Server(server, {
   cors: {
-    origin: function (origin, callback) {
-      // Allow any origin (or list your allowed ones)
-      callback(null, true);
-    },
+    origin: function (origin, callback) { callback(null, true); },
     methods: ["GET", "POST"],
     credentials: false,
   },
 });
 
-// 🔹 Optional: connection log
 io.on("connection", (socket) => {
   console.log("⚡ Client connected:", socket.id);
-
   socket.on("disconnect", (reason) => {
     console.log("❌ Client disconnected:", socket.id, reason);
   });
 });
 
-// CORS
 app.use(cors({
-  origin: function (origin, callback) {
-    callback(null, true); // Allow all, or specify your origins
-  },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  origin: function (origin, callback) { callback(null, true); },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
-  credentials: false
+  credentials: false,
 }));
 
 app.options(/.*/, cors());
-app.use(express.json());
-// Parse URL-encoded bodies (required for Twilio webhook and form posts)
-app.use(express.urlencoded({ extended: false }));
+// Increase body-parser limits to allow large base64 documents from Stage 3 uploads.
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // for parsing application/x-www-form-urlencoded
 
-// --- Routes ---
-app.use("/api/auth", authRoutes);
-app.use("/api/protected", protectedRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/otp", otpRoutes);
-app.use("/api/visitor", visitorRoutes);
+app.use("/api/auth",        authRoutes);
+app.use("/api/protected",   protectedRoutes);
+app.use("/api/users",       userRoutes);
+app.use("/api/otp",         otpRoutes);
+app.use("/api/visitor",     visitorRoutes);
 app.use("/api/userdetails", detailsRoutes);
 app.use("/api/enquiries", enquiryRoutes);
 app.use("/api/hr", hrRoutes);
@@ -83,11 +72,10 @@ app.use("/api/calls", callRoutes);
 app.use("/api/agents", agentRoutes);
 app.use('/api/twilio', twilioRoutes);
 app.use('/api/whatsappleads', whatsAppLeadRoutes);
+app.use('/api/trends', trendsRoutes);
 
-// --- Server Start Logic ---
 const startServer = async () => {
   try {
-    // MongoDB (optional)
     try {
       await connectDB();
       console.log("MongoDB connected successfully");
@@ -96,15 +84,14 @@ const startServer = async () => {
       console.log("Using SQLite fallback");
     }
 
-    // SQLite (required)
-    // await connectSQLiteDB();
-    // console.log("SQLite connected successfully");
-
     const port = process.env.PORT || 8000;
 
-    // START SERVER (IMPORTANT)
     server.listen(port, "0.0.0.0", () => {
       console.log(`Server running on port ${port}`);
+
+      // ✅ NEW: start 1hr missed call alert — after server is ready
+      startMissedCallAlerts();
+      console.log("⏰ Missed call alert scheduler started");
     });
 
   } catch (error) {

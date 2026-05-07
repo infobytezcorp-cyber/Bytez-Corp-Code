@@ -1,6 +1,6 @@
 import React from "react";
 import useAnalytics from "../hooks/useAnalytics";
-import Sidebar from "../components/dashboards/visitors/Sidebar";
+import Sidebar from "../components/dashboards/Sidebar";
 
 export default function AnalyticsPage() {
   const { data: analytics, loading, error, lastUpdated, refresh } = useAnalytics();

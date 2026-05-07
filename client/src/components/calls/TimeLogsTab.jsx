@@ -1,494 +1,166 @@
-// src/components/calls/TimeLogsTab.jsx
-
 import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 
-// ─── Utils ───────────────────────────────────────────────────────────────────
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+const formatDuration = (s) => {
+    if (!s || s < 0) return "0m";
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
 
-function formatDuration(totalSeconds) {
-    if (!totalSeconds || totalSeconds < 0) return "—";
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    if (h > 0) return `${h}h ${m}m ${s}s`;
-    if (m > 0) return `${m}m ${s}s`;
-    return `${s}s`;
-}
+const toDateStr = (d) => new Date(d).toLocaleDateString('en-CA');
 
-function toDateStr(dateInput) {
-    const d = new Date(dateInput);
-    const yy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yy}-${mm}-${dd}`;
-}
+const BREAK_LIMIT = 3600; // 1 Hour
 
-function formatDisplayDate(dateStr) {
-    const [y, m, d] = dateStr.split("-").map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString([], {
-        weekday: "short", day: "numeric", month: "short",
-    });
-}
+// ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
 
-const BREAK_LIMIT_SECONDS = 3600;
+const MiniStat = ({ label, value, icon, theme }) => (
+    <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 flex-1 min-w-[200px]">
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${theme} shadow-inner`}>
+            {icon}
+        </div>
+        <div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+            <p className="text-xl font-black text-slate-800 tracking-tight">{value}</p>
+        </div>
+    </div>
+);
 
-// ─── Popup Modal (rendered via createPortal into document.body) ───────────────
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
-function BreakLogsModal({ agent, selectedDate, onDateChange, onClose }) {
-    const logs = agent.breakLogs ?? [];
+export default function TimeLogsTab({ agents = [] }) {
+    const [selectedAgent, setSelectedAgent] = useState(null);
+    const [filterDate, setFilterDate] = useState(toDateStr(new Date()));
+    const [search, setSearch] = useState("");
 
-    // Lock background scroll while modal is open
-    useEffect(() => {
-        document.body.style.overflow = "hidden";
-        return () => { document.body.style.overflow = ""; };
-    }, []);
+    // 1. Data Calculation Logic
+    const { agentSummaries, totalBreakTime, extraTime, overLimitCount } = useMemo(() => {
+        let totalTime = 0;
+        let extra = 0;
+        let overCount = 0;
 
-    // Close on Escape key
-    useEffect(() => {
-        const handler = (e) => { if (e.key === "Escape") onClose(); };
-        window.addEventListener("keydown", handler);
-        return () => window.removeEventListener("keydown", handler);
-    }, [onClose]);
+        const filtered = agents
+            .filter(a => (a.name ?? "").toLowerCase().includes(search.toLowerCase()))
+            .map(a => {
+                const logs = (a.breakLogs ?? []).filter(l => 
+                    !filterDate || (l.breakStart && toDateStr(l.breakStart) === filterDate)
+                );
+                const secs = logs.reduce((sum, l) => sum + (l.durationMinutes ?? 0) * 60, 0);
+                const isOver = secs > BREAK_LIMIT;
 
-    const availableDates = useMemo(() => {
-        const set = new Set(
-            logs.filter(l => l.breakStart).map(l => toDateStr(l.breakStart))
-        );
-        return [...set].sort((a, b) => b.localeCompare(a));
-    }, [logs]);
+                totalTime += secs;
+                if (isOver) {
+                    overCount++;
+                    extra += (secs - BREAK_LIMIT);
+                }
 
-    const filteredLogs = useMemo(() => {
-        if (!selectedDate) return logs;
-        return logs.filter(l => l.breakStart && toDateStr(l.breakStart) === selectedDate);
-    }, [logs, selectedDate]);
+                return { agent: a, secs, sessions: logs.length, isOver };
+            })
+            .sort((a, b) => b.secs - a.secs);
 
-    const totalSec = filteredLogs.reduce((s, l) => s + (l.durationMinutes ?? 0) * 60, 0);
-    const isOverLimit = totalSec > BREAK_LIMIT_SECONDS;
+        return { agentSummaries: filtered, totalBreakTime: totalTime, extraTime: extra, overLimitCount: overCount };
+    }, [agents, filterDate, search]);
 
-    // Portal renders directly into document.body —
-    // escapes ALL parent containers (overflow, position, transform, z-index)
-    return createPortal(
-        <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-            style={{ background: "rgba(15,23,42,0.6)", backdropFilter: "blur(6px)" }}
-            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-        >
-            {/* Modal card */}
-            <div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden border border-slate-100"
-                style={{ maxHeight: "85vh" }}
-                onClick={(e) => e.stopPropagation()}
-            >
+    return (
+        <div className="space-y-8 animate-in fade-in duration-700">
+            
+            {/* ── Header Stats ── */}
+            <div className="flex flex-wrap gap-4">
+                <MiniStat label="Agents Tracked" value={agentSummaries.length} icon="👥" theme="bg-indigo-50 text-indigo-600" />
+                <MiniStat label="Total Break Used" value={formatDuration(totalBreakTime)} icon="⏱️" theme="bg-blue-50 text-blue-600" />
+                <MiniStat label="Extra Time Used" value={formatDuration(extraTime)} icon="⚠️" theme="bg-rose-50 text-rose-600" />
+                <MiniStat label="Limit Violations" value={overLimitCount} icon="🚨" theme="bg-amber-50 text-amber-600" />
+            </div>
 
-                {/* ── Header ── */}
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shrink-0 select-none">
-                            {agent.name?.[0]?.toUpperCase() ?? "?"}
-                        </div>
-                        <div>
-                            <h2 className="text-base font-semibold text-slate-800">
-                                {agent.name} — Break Logs
-                            </h2>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                                All-time total:{" "}
-                                <span className="font-semibold text-slate-600">
-                                    {formatDuration((agent.totalBreakMinutes ?? 0) * 60)}
-                                </span>
-                            </p>
-                        </div>
+            {/* ── Filter Bar ── */}
+            <div className="bg-white/60 backdrop-blur-md p-4 rounded-[2.5rem] border border-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="relative w-full md:w-80">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300">🔍</span>
+                    <input 
+                        placeholder="Search agent name..." 
+                        value={search} onChange={e => setSearch(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-100 bg-white font-bold text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                    />
+                </div>
+
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    <div className="flex bg-slate-200/50 p-1 rounded-2xl items-center">
+                        <button 
+                            onClick={() => setFilterDate(toDateStr(new Date()))}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${filterDate === toDateStr(new Date()) ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                        >
+                            Today
+                        </button>
+                        <input 
+                            type="date" 
+                            value={filterDate} 
+                            onChange={e => setFilterDate(e.target.value)}
+                            className="bg-transparent text-[10px] font-black uppercase text-slate-600 px-3 outline-none cursor-pointer"
+                        />
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors text-lg"
-                        aria-label="Close"
+                    <button 
+                        onClick={() => setFilterDate("")}
+                        className="w-11 h-11 rounded-2xl border border-slate-100 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
                     >
                         ✕
                     </button>
                 </div>
-
-                {/* ── Date Filter Pills ── */}
-                <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-3 flex-wrap shrink-0 bg-slate-50">
-                    <span className="text-xs text-slate-400 font-medium shrink-0">Filter:</span>
-                    <div className="flex gap-1.5 flex-wrap flex-1">
-                        <button
-                            onClick={() => onDateChange("")}
-                            className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all
-                ${!selectedDate
-                                    ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                                    : "text-slate-500 border-slate-200 bg-white hover:bg-slate-50"}`}
-                        >
-                            All dates
-                        </button>
-                        {availableDates.map(date => (
-                            <button
-                                key={date}
-                                onClick={() => onDateChange(date)}
-                                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all
-                  ${selectedDate === date
-                                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                                        : "text-slate-500 border-slate-200 bg-white hover:bg-slate-50"}`}
-                            >
-                                {formatDisplayDate(date)}
-                            </button>
-                        ))}
-                    </div>
-                    <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={e => onDateChange(e.target.value)}
-                        className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 shrink-0"
-                    />
-                </div>
-
-                {/* ── Summary Bar ── */}
-                {filteredLogs.length > 0 && (
-                    <div className={`px-6 py-2.5 flex items-center justify-between text-xs shrink-0 border-b
-            ${isOverLimit ? "bg-red-50 border-red-100" : "bg-emerald-50 border-emerald-100"}`}
-                    >
-                        <span className="text-slate-500">
-                            {filteredLogs.length} session{filteredLogs.length !== 1 ? "s" : ""}
-                            {selectedDate ? ` on ${formatDisplayDate(selectedDate)}` : ""}
-                        </span>
-                        <span className={`font-semibold font-mono flex items-center gap-1
-              ${isOverLimit ? "text-red-600" : "text-emerald-600"}`}>
-                            {isOverLimit && "⚠️ "}
-                            Total: {formatDuration(totalSec)}
-                        </span>
-                    </div>
-                )}
-
-                {/* ── Table ── */}
-                <div className="overflow-y-auto flex-1">
-                    {filteredLogs.length === 0 ? (
-                        <div className="py-16 text-center">
-                            <p className="text-4xl mb-3">📭</p>
-                            <p className="text-sm text-slate-400">
-                                {logs.length === 0 ? "No break logs yet" : "No breaks on this date"}
-                            </p>
-                        </div>
-                    ) : (
-                        <table className="w-full">
-                            <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-100">
-                                <tr>
-                                    {["#", "Break Start", "Break End", "Duration", "Status"].map(h => (
-                                        <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                            {h}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {filteredLogs.map((log, i) => {
-                                    const durSec = (log.durationMinutes ?? 0) * 60;
-                                    const over = durSec > BREAK_LIMIT_SECONDS;
-                                    return (
-                                        <tr key={i} className="hover:bg-slate-50/70 transition-colors">
-
-                                            <td className="px-5 py-3.5 text-xs text-slate-400 w-8">{i + 1}</td>
-
-                                            <td className="px-5 py-3.5">
-                                                <p className="text-sm font-medium text-slate-700">
-                                                    {new Date(log.breakStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                                                </p>
-                                                <p className="text-xs text-slate-400">
-                                                    {new Date(log.breakStart).toLocaleDateString([], { day: "numeric", month: "short" })}
-                                                </p>
-                                            </td>
-
-                                            <td className="px-5 py-3.5">
-                                                {log.breakEnd ? (
-                                                    <>
-                                                        <p className="text-sm font-medium text-slate-700">
-                                                            {new Date(log.breakEnd).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                                                        </p>
-                                                        <p className="text-xs text-slate-400">
-                                                            {new Date(log.breakEnd).toLocaleDateString([], { day: "numeric", month: "short" })}
-                                                        </p>
-                                                    </>
-                                                ) : (
-                                                    <span className="text-xs text-yellow-600 font-medium flex items-center gap-1.5">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse inline-block" />
-                                                        On break
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            <td className="px-5 py-3.5">
-                                                <span className={`text-xs font-mono font-semibold px-2.5 py-1 rounded-full border
-                          ${over
-                                                        ? "bg-red-100 text-red-600 border-red-200"
-                                                        : "bg-slate-100 text-slate-600 border-slate-200"}`}>
-                                                    {over && "⚠️ "}{formatDuration(durSec)}
-                                                </span>
-                                            </td>
-
-                                            <td className="px-5 py-3.5">
-                                                <span className={`text-xs px-2.5 py-0.5 rounded-full border font-medium
-                          ${log.breakEnd
-                                                        ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                                                        : "bg-yellow-100 text-yellow-700 border-yellow-200"}`}>
-                                                    {log.breakEnd ? "Completed" : "Active"}
-                                                </span>
-                                            </td>
-
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-
-                {/* ── Footer ── */}
-                <div className="px-6 py-3 border-t border-slate-100 flex justify-end shrink-0 bg-slate-50/50">
-                    <button
-                        onClick={onClose}
-                        className="px-5 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:bg-white transition-colors"
-                    >
-                        Close
-                    </button>
-                </div>
-
             </div>
-        </div>,
-        document.body  // ← renders directly into body, guaranteed full-screen popup
-    );
-}
 
-
-
-// ─── Main Component ───────────────────────────────────────────────────────────
-
-export default function TimeLogsTab({ agents = [] }) {
-
-    const [selectedAgent, setSelectedAgent] = useState(null);
-    const [logsDate, setLogsDate] = useState(new Date().toISOString().split("T")[0]);
-    const [filterDate, setFilterDate] = useState(new Date().toISOString().split("T")[0] /* today */);
-    const [search, setSearch] = useState("");
-
-    // const handleViewLogs = (agent) => { setSelectedAgent(agent); setLogsDate(""); };
-    const handleViewLogs = (agent) => {
-        setSelectedAgent(agent);
-        setLogsDate(new Date().toISOString().split("T")[0]); // 🔥 TODAY
-    };
-    const handleCloseModal = () => setSelectedAgent(null);
-
-    const allDates = useMemo(() => {
-        const dates = new Set();
-        agents.forEach(a =>
-            (a.breakLogs ?? []).forEach(l => {
-                if (l.breakStart) dates.add(toDateStr(l.breakStart));
-            })
-        );
-        return [...dates].sort((a, b) => b.localeCompare(a));
-    }, [agents]);
-
-    const agentSummaries = useMemo(() => {
-        return agents
-            .filter(a => (a.name ?? "").toLowerCase().includes(search.toLowerCase()))
-            .map(a => {
-                const logs = (a.breakLogs ?? []).filter(l =>
-                    !filterDate || (l.breakStart && toDateStr(l.breakStart) === filterDate)
-                );
-                const totalSeconds = logs.reduce((sum, l) => sum + (l.durationMinutes ?? 0) * 60, 0);
-                const sessions = logs.length;
-                const isOver = totalSeconds > BREAK_LIMIT_SECONDS;
-                return { agent: a, totalSeconds, sessions, isOver };
-            })
-            .sort((a, b) => b.totalSeconds - a.totalSeconds);
-    }, [agents, filterDate, search]);
-
-    const dashboardStats = useMemo(() => {
-        let totalAgents = agents.length;
-        let totalBreakSeconds = 0;
-        let extraBreakSeconds = 0;
-        let overLimitAgents = 0;
-
-        agents.forEach(agent => {
-            const totalSec = (agent.breakLogs ?? []).reduce(
-                (sum, l) => sum + (l.durationMinutes ?? 0) * 60,
-                0
-            );
-
-            totalBreakSeconds += totalSec;
-
-            if (totalSec > BREAK_LIMIT_SECONDS) {
-                overLimitAgents++;
-                extraBreakSeconds += (totalSec - BREAK_LIMIT_SECONDS);
-            }
-        });
-
-        return {
-            totalAgents,
-            totalBreakSeconds,
-            extraBreakSeconds,
-            overLimitAgents
-        };
-    }, [agents]);
-
-    return (
-        <>
-
-            {/* ── Dashboard Cards ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-
-                <div className="bg-white rounded-2xl border p-4 shadow-sm">
-                    <p className="text-xs text-slate-400">Total Agents</p>
-                    <h2 className="text-xl font-bold text-slate-800 mt-1">
-                        {dashboardStats.totalAgents}
-                    </h2>
-                </div>
-
-                <div className="bg-white rounded-2xl border p-4 shadow-sm">
-                    <p className="text-xs text-slate-400">Total Break Time</p>
-                    <h2 className="text-xl font-bold text-blue-600 mt-1">
-                        {formatDuration(dashboardStats.totalBreakSeconds)}
-                    </h2>
-                </div>
-
-                <div className="bg-white rounded-2xl border p-4 shadow-sm">
-                    <p className="text-xs text-slate-400">Extra Break Time</p>
-                    <h2 className="text-xl font-bold text-red-600 mt-1">
-                        {formatDuration(dashboardStats.extraBreakSeconds)}
-                    </h2>
-                </div>
-
-                <div className="bg-white rounded-2xl border p-4 shadow-sm">
-                    <p className="text-xs text-slate-400">Over Limit Agents</p>
-                    <h2 className="text-xl font-bold text-amber-600 mt-1">
-                        {dashboardStats.overLimitAgents}
-                    </h2>
-                </div>
-
-            </div>
-            {/* ── Table Card ── */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-
-                {/* Toolbar */}
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
-                    <div>
-                        <h2 className="text-base font-semibold text-slate-800">Break Time Logs</h2>
-                        <p className="text-xs text-slate-400 mt-0.5">All agents — break history</p>
-                    </div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
-                            <input
-                                placeholder="Search agent..."
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                                className="pl-8 pr-4 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all w-44"
-                            />
-                        </div>
-                        <select
-                            value={filterDate}
-                            onChange={e => setFilterDate(e.target.value)}
-                            className="text-sm border border-slate-200 rounded-xl px-3 py-2 text-slate-600 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
-                        >
-
-                            {/* Today first */}
-                            <option value={new Date().toISOString().split("T")[0]}>
-                                Today
-                            </option>
-
-                            {/* All dates */}
-                            <option value="">All dates</option>
-
-                            {/* Other dates */}
-                            {/* {allDates
-                                .filter(d => d !== new Date().toISOString().split("T")[0])
-                                .map(d => (
-                                    <option key={d} value={d}>
-                                        {formatDisplayDate(d)}
-                                    </option>
-                                ))} */}
-
-                        </select>
-                    </div>
-                </div>
-
-                {/* Table */}
-                <table className="w-full">
+            {/* ── Data Table ── */}
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden">
+                <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="bg-slate-50 border-b border-slate-100">
-                            {["Agent", "Sessions", "Total Break Time", "Status", "Action"].map(h => (
-                                <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                    {h}
-                                </th>
-                            ))}
+                        <tr className="bg-slate-50/50 border-b border-slate-100">
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Agent</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sessions</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time Spent</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Compliance</th>
+                            <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Activity</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                         {agentSummaries.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-400">
-                                    {agents.length === 0 ? "No agents loaded" : "No agents match your search"}
-                                </td>
-                            </tr>
+                            <tr><td colSpan={5} className="p-24 text-center text-slate-300 font-bold italic">No records found.</td></tr>
                         ) : (
-                            agentSummaries.map(({ agent, totalSeconds, sessions, isOver }) => (
-                                <tr
-                                    key={agent._id}
-                                    className={`transition-colors hover:bg-slate-50 ${isOver ? "bg-red-50/30" : ""}`}
-                                >
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-semibold shrink-0">
-                                                {agent.name?.[0]?.toUpperCase() ?? "?"}
+                            agentSummaries.map(({ agent, secs, sessions, isOver }) => (
+                                <tr key={agent._id} className="group hover:bg-indigo-50/30 transition-all duration-300">
+                                    <td className="px-8 py-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-11 h-11 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-lg group-hover:rotate-6 transition-transform">
+                                                {agent.name?.[0]}
                                             </div>
                                             <div>
-                                                <p className="text-sm font-medium text-slate-700">{agent.name}</p>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium
-                          ${{
-                                                        available: "bg-emerald-100 text-emerald-700 border-emerald-200",
-                                                        busy: "bg-red-100 text-red-700 border-red-200",
-                                                        break: "bg-yellow-100 text-yellow-700 border-yellow-200",
-                                                    }[agent.status] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}
-                                                >
-                                                    {agent.status}
-                                                </span>
+                                                <p className="text-sm font-black text-slate-800">{agent.name}</p>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase">{agent.status}</p>
                                             </div>
                                         </div>
                                     </td>
-
-                                    <td className="px-6 py-4 text-sm text-slate-600">
-                                        {sessions} session{sessions !== 1 ? "s" : ""}
+                                    <td className="px-8 py-6">
+                                        <span className="text-xs font-black text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                                            {sessions} sessions
+                                        </span>
                                     </td>
-
-                                    <td className="px-6 py-4">
-                                        {totalSeconds > 0 ? (
-                                            <span className={`text-sm font-mono font-semibold flex items-center gap-1
-                        ${isOver ? "text-red-600" : "text-slate-700"}`}>
-                                                {isOver && <span>⚠️</span>}
-                                                {formatDuration(totalSeconds)}
-                                            </span>
-                                        ) : (
-                                            <span className="text-sm text-slate-400">No breaks</span>
-                                        )}
+                                    <td className="px-8 py-6">
+                                        <p className={`text-sm font-black ${isOver ? 'text-rose-500' : 'text-slate-700'}`}>
+                                            {formatDuration(secs)}
+                                        </p>
                                     </td>
-
-                                    <td className="px-6 py-4">
-                                        {isOver ? (
-                                            <span className="text-xs px-2.5 py-1 rounded-full bg-red-100 text-red-600 border border-red-200 font-medium">
-                                                Over limit
-                                            </span>
-                                        ) : totalSeconds > 0 ? (
-                                            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 font-medium">
-                                                Within limit
-                                            </span>
-                                        ) : (
-                                            <span className="text-xs text-slate-400">—</span>
-                                        )}
+                                    <td className="px-8 py-6">
+                                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${
+                                            isOver ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'
+                                        }`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${isOver ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
+                                            {isOver ? 'Limit Over' : 'Within Limit'}
+                                        </div>
                                     </td>
-
-                                    {/* View Logs button → opens popup */}
-                                    <td className="px-6 py-4">
-                                        <button
-                                            onClick={() => handleViewLogs(agent)}
-                                            className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 active:scale-95 transition-all"
+                                    <td className="px-8 py-6 text-right">
+                                        <button 
+                                            onClick={() => setSelectedAgent(agent)}
+                                            className="px-5 py-2.5 bg-white border border-slate-200 text-indigo-600 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shadow-sm active:scale-95"
                                         >
-                                            View Logs →
+                                            View Logs
                                         </button>
                                     </td>
                                 </tr>
@@ -498,15 +170,62 @@ export default function TimeLogsTab({ agents = [] }) {
                 </table>
             </div>
 
-            {/* ── Popup modal via createPortal — renders into document.body ── */}
+            {/* Modal Logic remains same but UI will be cleaner */}
             {selectedAgent && (
                 <BreakLogsModal
                     agent={selectedAgent}
-                    selectedDate={logsDate}
-                    onDateChange={setLogsDate}
-                    onClose={handleCloseModal}
+                    selectedDate={filterDate}
+                    onClose={() => setSelectedAgent(null)}
                 />
             )}
-        </>
+        </div>
+    );
+}
+
+// ─── Modal Implementation ─────────────────────────────────────────────────────
+function BreakLogsModal({ agent, selectedDate, onClose }) {
+    const logs = (agent.breakLogs || []).filter(l => !selectedDate || toDateStr(l.breakStart) === selectedDate);
+
+    return createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden max-h-[85vh]">
+                <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <div>
+                        <h2 className="text-xl font-black text-slate-800">{agent.name}</h2>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Break Timeline for {selectedDate || 'All History'}</p>
+                    </div>
+                    <button onClick={onClose} className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-white transition-all text-xl">✕</button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-8">
+                    <div className="space-y-4">
+                        {logs.length === 0 ? (
+                            <p className="text-center py-10 text-slate-400 font-bold italic">No logs recorded.</p>
+                        ) : (
+                            logs.map((l, i) => (
+                                <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                                        <div>
+                                            <p className="text-xs font-black text-slate-700">
+                                                {new Date(l.breakStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                <span className="mx-2 text-slate-300">→</span>
+                                                {l.breakEnd ? new Date(l.breakEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Active"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
+                                        {formatDuration((l.durationMinutes || 0) * 60)}
+                                    </p>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+                <div className="p-6 bg-slate-50/50 border-t border-slate-100 text-right">
+                    <button onClick={onClose} className="px-8 py-3 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all">Close</button>
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 }

@@ -1,4 +1,6 @@
 import Enquiry from "../models/Enquiry.js";
+import Agent from "../models/Agent.js";
+import Employee from "../models/Hr&Staff.js";
 
 const getStoredAadharDocument = (enquiry) => (
   enquiry?.documents?.aadharDocument ||
@@ -45,11 +47,28 @@ export const getAllEnquiries = async (req, res) => {
       }
     }
 
-    const enquiries = await Enquiry.find(filter)
-      .sort({ createdAt: -1 })
-      .lean();
+    let enquiries = await Enquiry.find(filter).sort({ createdAt: -1 });
 
-    res.json(enquiries);
+    // Enrich assignedTo: prefer Employee, fallback to Agent if present
+    const enriched = await Promise.all(enquiries.map(async (e) => {
+      const obj = e.toObject ? e.toObject() : e;
+      if (obj.assignedTo) {
+        // try Employee
+        const emp = await Employee.findById(obj.assignedTo).select('name id mobile dept service role').lean().catch(() => null);
+        if (emp) {
+          obj.assignedTo = emp;
+        } else {
+          // try Agent
+          const ag = await Agent.findById(obj.assignedTo).select('name status linkedUser').lean().catch(() => null);
+          if (ag) {
+            obj.assignedTo = { _id: ag._id, name: ag.name, type: 'agent' };
+          }
+        }
+      }
+      return obj;
+    }));
+
+    res.json(enriched);
   } catch (err) {
     console.error("❌ Get All Enquiries Error:", err.message);
     res.status(500).json({ message: err.message });
@@ -59,9 +78,19 @@ export const getAllEnquiries = async (req, res) => {
 // ✅ 2. GET enquiries by client ID (all history)
 export const getEnquiriesByClientId = async (req, res) => {
   try {
-    const enquiries = await Enquiry.find({
-      clientId: req.params.clientId,
-    }).sort({ createdAt: -1 });
+    let enquiries = await Enquiry.find({ clientId: req.params.clientId }).sort({ createdAt: -1 });
+    const enriched = await Promise.all(enquiries.map(async (e) => {
+      const obj = e.toObject ? e.toObject() : e;
+      if (obj.assignedTo) {
+        const emp = await Employee.findById(obj.assignedTo).select('name id mobile dept service role').lean().catch(() => null);
+        if (emp) obj.assignedTo = emp;
+        else {
+          const ag = await Agent.findById(obj.assignedTo).select('name status linkedUser').lean().catch(() => null);
+          if (ag) obj.assignedTo = { _id: ag._id, name: ag.name, type: 'agent' };
+        }
+      }
+      return obj;
+    }));
 
     if (enquiries.length === 0) {
       return res
@@ -79,7 +108,19 @@ export const getEnquiriesByClientId = async (req, res) => {
 // ✅ 3. GET single enquiry by ID
 export const getEnquiryById = async (req, res) => {
   try {
-    const enquiry = await Enquiry.findById(req.params.id);
+    let enquiry = await Enquiry.findById(req.params.id);
+    if (enquiry) {
+      const obj = enquiry.toObject();
+      if (obj.assignedTo) {
+        const emp = await Employee.findById(obj.assignedTo).select('name id mobile dept service role').lean().catch(() => null);
+        if (emp) obj.assignedTo = emp;
+        else {
+          const ag = await Agent.findById(obj.assignedTo).select('name status linkedUser').lean().catch(() => null);
+          if (ag) obj.assignedTo = { _id: ag._id, name: ag.name, type: 'agent' };
+        }
+      }
+      enquiry = obj;
+    }
 
     if (!enquiry) {
       return res.status(404).json({ message: "Enquiry not found" });
@@ -126,9 +167,20 @@ export const createEnquiry = async (req, res) => {
 
     const savedEnquiry = await enquiry.save();
 
+    // Enrich assignedTo for immediate client-side use (Employee or Agent)
+    let savedObj = savedEnquiry.toObject ? savedEnquiry.toObject() : savedEnquiry;
+    if (savedObj.assignedTo) {
+      const emp = await Employee.findById(savedObj.assignedTo).select('name id mobile dept service role').lean().catch(() => null);
+      if (emp) savedObj.assignedTo = emp;
+      else {
+        const ag = await Agent.findById(savedObj.assignedTo).select('name status linkedUser').lean().catch(() => null);
+        if (ag) savedObj.assignedTo = { _id: ag._id, name: ag.name, type: 'agent' };
+      }
+    }
+
     res.status(201).json({
       message: "Enquiry created successfully",
-      enquiry: savedEnquiry,
+      enquiry: savedObj,
     });
   } catch (err) {
     console.error("❌ Create Enquiry Error:", err.message);
@@ -183,10 +235,20 @@ export const updateEnquiry = async (req, res) => {
       console.log(`✅ Aadhar document processed and stored in documents field`);
     }
 
-    const enquiry = await Enquiry.findByIdAndUpdate(id, updates, {
+    const rawEnquiry = await Enquiry.findByIdAndUpdate(id, updates, {
       returnDocument: 'after',
       runValidators: true,
     });
+
+    let enquiry = rawEnquiry ? (rawEnquiry.toObject ? rawEnquiry.toObject() : rawEnquiry) : null;
+    if (enquiry && enquiry.assignedTo) {
+      const emp = await Employee.findById(enquiry.assignedTo).select('name id mobile dept service role').lean().catch(() => null);
+      if (emp) enquiry.assignedTo = emp;
+      else {
+        const ag = await Agent.findById(enquiry.assignedTo).select('name status linkedUser').lean().catch(() => null);
+        if (ag) enquiry.assignedTo = { _id: ag._id, name: ag.name, type: 'agent' };
+      }
+    }
 
     if (!enquiry) {
       return res.status(404).json({ message: "Enquiry not found" });
@@ -317,11 +379,21 @@ export const searchEnquiries = async (req, res) => {
       };
     }
 
-    const enquiries = await Enquiry.find(searchFilter).sort({
-      createdAt: -1,
-    });
+    let enquiries = await Enquiry.find(searchFilter).sort({ createdAt: -1 });
+    const enriched = await Promise.all(enquiries.map(async (e) => {
+      const obj = e.toObject ? e.toObject() : e;
+      if (obj.assignedTo) {
+        const emp = await Employee.findById(obj.assignedTo).select('name id mobile dept service role').lean().catch(() => null);
+        if (emp) obj.assignedTo = emp;
+        else {
+          const ag = await Agent.findById(obj.assignedTo).select('name status linkedUser').lean().catch(() => null);
+          if (ag) obj.assignedTo = { _id: ag._id, name: ag.name, type: 'agent' };
+        }
+      }
+      return obj;
+    }));
 
-    res.json(enquiries);
+    res.json(enriched);
   } catch (err) {
     console.error("❌ Search Enquiries Error:", err.message);
     res.status(500).json({ message: err.message });
@@ -333,11 +405,21 @@ export const getEnquiriesByStage = async (req, res) => {
   try {
     const { stage } = req.params;
 
-    const enquiries = await Enquiry.find({ stage }).sort({
-      createdAt: -1,
-    });
+    let enquiries = await Enquiry.find({ stage }).sort({ createdAt: -1 });
+    const enriched = await Promise.all(enquiries.map(async (e) => {
+      const obj = e.toObject ? e.toObject() : e;
+      if (obj.assignedTo) {
+        const emp = await Employee.findById(obj.assignedTo).select('name id mobile dept service role').lean().catch(() => null);
+        if (emp) obj.assignedTo = emp;
+        else {
+          const ag = await Agent.findById(obj.assignedTo).select('name status linkedUser').lean().catch(() => null);
+          if (ag) obj.assignedTo = { _id: ag._id, name: ag.name, type: 'agent' };
+        }
+      }
+      return obj;
+    }));
 
-    res.json(enquiries);
+    res.json(enriched);
   } catch (err) {
     console.error("❌ Get Enquiries By Stage Error:", err.message);
     res.status(500).json({ message: err.message });

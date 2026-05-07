@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Visitors from "../components/dashboards/visitors/Visitors";
-import Sidebar from "../components/dashboards/visitors/Sidebar";
+import Sidebar from "../components/dashboards/Sidebar";
 import {
   fetchMyAgent,
   toggleMyBreak,

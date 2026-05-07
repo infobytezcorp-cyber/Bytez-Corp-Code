@@ -67,14 +67,32 @@ router.post('/', async (req, res) => {
     const pfx = deptPrefixes[dept] || "EMP";
 
     // 3. Auto-generate ID logic
-    const count = await Employee.countDocuments({ dept });
-    const nextNumber = 100 + count + 1;
-    const generatedId = `EMP-${pfx}-${nextNumber}`;
+    // Prefer deriving from mobile or aadhaar for contact-driven roles (e.g., calls/telecaller)
+    let generatedIdBase = null;
+    if (mobile) {
+      const last4 = mobile.slice(-4);
+      generatedIdBase = `EMP-${pfx}-M${last4}`;
+    } else if (aadhaar) {
+      const last4 = aadhaar.slice(-4);
+      generatedIdBase = `EMP-${pfx}-A${last4}`;
+    } else {
+      const count = await Employee.countDocuments({ dept });
+      const nextNumber = 100 + count + 1;
+      generatedIdBase = `EMP-${pfx}-${nextNumber}`;
+    }
+
+    // Ensure uniqueness by appending an incrementing suffix if needed
+    let candidateId = generatedIdBase;
+    let suffix = 1;
+    while (await Employee.findOne({ id: candidateId })) {
+      candidateId = `${generatedIdBase}-${suffix}`;
+      suffix += 1;
+    }
 
     // 4. Create and Save
     const newEmployee = new Employee({ 
       ...req.body, 
-      id: generatedId,
+      id: candidateId,
       status: "Present" 
     });
     console.log("✅ Saving Employee with ID:", newEmployee );

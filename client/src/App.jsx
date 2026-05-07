@@ -12,6 +12,7 @@ import VisitorRegistration from "./components/dashboards/visitors/VisitorRegistr
 import SuccessPage from "./components/dashboards/visitors/SuccessPage";
 import JobRegistorForm from "./components/dashboards/visitors/JobRegistorForm";
 import Enquiry from "./pages/Enquiry";
+import EnquiryWithLeadForm from "./pages/EnquiryWithLeadForm";
 import CallCenter from "./pages/CallCenter";
 import StaffPage from "./pages/StaffPage";
 import ExEmployeePage from "./pages/ExEmployeePage";
@@ -30,7 +31,14 @@ import VisitorPage from "./pages/VisitorPage";
 import EnquiryCalls from "./pages/EnquiryCalls";
 import TelecallerPage from "./pages/TelecallerPage";
 import socket from "./services/socket";
+import Trends from "./pages/Trends";
 import { useEffect } from "react";
+import ReportsLanding from "./pages/reports/ReportsLanding";
+import UserLoginReportPage from "./pages/reports/UserLoginReportPage";
+import UserCallReportPage from "./pages/reports/UserCallReportPage";
+import PlaceholderReport from "./pages/reports/PlaceholderReport";
+import UserTaskReportPage from "./pages/reports/UserTaskReportPage";
+import UserStageReportPage from "./pages/reports/UserStageReportPage";
 
 
 
@@ -58,12 +66,69 @@ function App() {
           <Route path="/success" element={<SuccessPage />} />
           <Route path="/jobform" element={<JobRegistorForm />} />
           <Route path="/EnquiryCalls" element={<EnquiryCalls />} />
+          <Route path="/trends" element={<Trends />} />
 
           <Route
             path="/enquiry"
             element={
               <ProtectedRoute role="admin">
                 <Enquiry />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute role="admin">
+                <ReportsLanding />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/login"
+            element={
+              <ProtectedRoute role="admin">
+                <UserLoginReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/calls"
+            element={
+              <ProtectedRoute role="admin">
+                <UserCallReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/activity"
+            element={
+              <ProtectedRoute role="admin">
+                <PlaceholderReport title="User Activity Report" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/followup"
+            element={
+              <ProtectedRoute role="admin">
+                <PlaceholderReport title="Follow-Up Report" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/user"
+            element={
+              <ProtectedRoute role="admin">
+                <UserStageReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/tasks"
+            element={
+              <ProtectedRoute role="admin">
+                <UserTaskReportPage />
               </ProtectedRoute>
             }
           />
@@ -139,6 +204,15 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/telecaller/enquiry"
+            element={
+              <ProtectedRoute role="telecaller">
+                <EnquiryWithLeadForm />
+              </ProtectedRoute>
+            }
+          />
+          
         </Routes>
       </BrowserRouter>
     </>

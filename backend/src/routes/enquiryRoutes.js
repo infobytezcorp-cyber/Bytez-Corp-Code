@@ -1,6 +1,7 @@
 import express from 'express';
 const router = express.Router();
 import Enquiry from '../models/Enquiry.js'; // Ensure this is the Mongoose model
+import Call from '../models/Call.js';
 import { getAadharDocument, getEnquiriesCountByStage } from '../controllers/enquiryController.js';
 
 // Helper: Convert array values to comma-separated strings
@@ -35,7 +36,30 @@ router.get('/', async (req, res) => {
     }
 
     const enquiries = await Enquiry.find(query).sort({ createdAt: -1 });
-    res.json(enquiries);
+
+    // Enrich each enquiry with the most recent call (if any) matching phone or contact.phone
+    const enriched = await Promise.all(enquiries.map(async (e) => {
+      try {
+        const phone = (e.phone || '').toString().replace(/\D/g, '').replace(/^91/, '');
+        const call = await Call.findOne({
+          $or: [ { number: { $regex: phone ? phone + '$' : '$' } }, { 'contact.phone': { $regex: phone ? phone + '$' : '$' } } ]
+        }).sort({ createdAt: -1 }).populate('agent', 'name');
+
+        const obj = e.toObject ? e.toObject() : { ...e };
+        if (call) {
+          obj.lastCall = call.createdAt || call.startTime || null;
+          obj.lastCallAgent = call.agent ? { _id: call.agent._id, name: call.agent.name } : null;
+        } else {
+          obj.lastCall = null;
+          obj.lastCallAgent = null;
+        }
+        return obj;
+      } catch (err) {
+        return e;
+      }
+    }));
+
+    res.json(enriched);
   } catch (err) {
     console.error('❌ Get All Enquiries Error:', err.message);
     res.status(500).json({ message: err.message });
@@ -98,6 +122,8 @@ router.post('/', async (req, res) => {
       email: req.body.email || null,
       personalDetails: req.body.personalDetails || {},
       stageDetails: req.body.stageDetails || {},
+      assignedTo: req.body.assignedTo || null,
+      assignedAt: req.body.assignedAt ? new Date(req.body.assignedAt) : null,
       careType: getStringValue(req.body.careType),
       lead: getStringValue(req.body.source || req.body.lead),
       stage: stage || 'New Enquiry',

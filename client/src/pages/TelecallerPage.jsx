@@ -10,20 +10,22 @@ import {
 import socket from "../services/socket";
 import API from "../services/api";
 
-import DashboardTab    from "../components/telecallerscallpage/DashboardTab";
+import DashboardTab from "../components/telecallerscallpage/DashboardTab";
 import BreakHistoryTab from "../components/telecallerscallpage/BreakHistoryTab";
-import CallLogsTab     from "../components/telecallerscallpage/CallLogsTab";
-import MissedCallsTab  from "../components/telecallerscallpage/MissedCallsTab";
+import CallLogsTab from "../components/telecallerscallpage/CallLogsTab";
+import MissedCallsTab from "../components/telecallerscallpage/MissedCallsTab";
 import { formatTimeShort } from "../components/telecallerscallpage/Utilities";
 import { POLL_INTERVAL_MS } from "../components/telecallerscallpage/Utilities";
+import LeadForm from "../components/enquiry/leadForm/LeadForm";
 
-// ─── Icons ────────────────────────────────────────────────────
+
 const PhoneIcon = ({ className = "w-4 h-4" }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
     strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12 19.79 19.79 0 0 1 1.9 3.37 2 2 0 0 1 3.89 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.99 5.99l1.07-1.07a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
   </svg>
 );
+
 
 const NAV_ITEMS = [
   {
@@ -60,7 +62,7 @@ const NAV_ITEMS = [
   },
 ];
 
-// ─── Sidebar ──────────────────────────────────────────────────
+// Sidebar Component 
 function TelecallerSidebar({ activeTab, setActiveTab, agent, onLogout, collapsed, setCollapsed }) {
   return (
     <aside className={`bg-slate-900 flex flex-col shrink-0 transition-all duration-300 ease-in-out min-h-screen relative z-30 ${collapsed ? "w-16" : "w-60"}`}>
@@ -92,11 +94,10 @@ function TelecallerSidebar({ activeTab, setActiveTab, agent, onLogout, collapsed
             {!collapsed && (
               <div className="min-w-0">
                 <p className="text-white text-xs font-bold truncate">{agent.name}</p>
-                <p className={`text-[10px] font-semibold mt-0.5 ${
-                  agent.status === "available" ? "text-emerald-400"
-                  : agent.status === "busy"    ? "text-blue-400"
-                  : "text-amber-400"
-                }`}>{agent.status}</p>
+                <p className={`text-[10px] font-semibold mt-0.5 ${agent.status === "available" ? "text-emerald-400"
+                    : agent.status === "busy" ? "text-blue-400"
+                      : "text-amber-400"
+                  }`}>{agent.status}</p>
               </div>
             )}
           </div>
@@ -139,7 +140,7 @@ function TelecallerSidebar({ activeTab, setActiveTab, agent, onLogout, collapsed
   );
 }
 
-// ─── Loading & Error States ───────────────────────────────────
+//Loading & Error States 
 function LoadingState() {
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -154,6 +155,7 @@ function LoadingState() {
   );
 }
 
+// This state is shown if the user is successfully authenticated but there is no agent profile linked to their account. 
 function NoAgentState() {
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -169,26 +171,28 @@ function NoAgentState() {
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────
+// Main Page Component
 export default function TelecallerPage() {
   const dispatch = useDispatch();
   const { agent, activeCall, loading, breakLoading, callLoading, loginTime } =
     useSelector(s => s.myAgent);
 
-  const [activeTab, setActiveTab]   = useState("dashboard");
-  const [collapsed, setCollapsed]   = useState(false);
-  const [now, setNow]               = useState(new Date());
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [collapsed, setCollapsed] = useState(false);
+  const [now, setNow] = useState(new Date());
+  const [showLeadForm, setShowLeadForm] = useState(false);
+  const [leadFormPhone, setLeadFormPhone] = useState('');
 
-  // Clock tick
+  // Update the current time every second to keep the clock in the top bar accurate and to allow real-time updates of "time since login" and call durations.
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Initial fetch
+  // Initial fetch of agent profile on page load 
   useEffect(() => { dispatch(fetchMyAgent()); }, [dispatch]);
 
-  // Poll active call
+  // Polling for active call every 30 seconds to keep the dadhboard info up-to-date in case of missed socket events or changes made from another tab/device.
   useEffect(() => {
     if (!agent?._id) return;
     dispatch(fetchMyCall(agent._id));
@@ -196,7 +200,7 @@ export default function TelecallerPage() {
     return () => clearInterval(poll);
   }, [agent?._id, dispatch]);
 
-  // Socket listener
+  // Socket listener for call updates - if any call involving this agent is updated, we refetch the active call to get the latest info and update the UI in real-time.
   useEffect(() => {
     if (!agent?._id) return;
     const handler = () => {
@@ -207,29 +211,53 @@ export default function TelecallerPage() {
     return () => socket.off("callUpdated", handler);
   }, [dispatch, agent?._id]);
 
+  // Admin force logout listener
+  useEffect(() => {
+    if (!agent?._id) return;
+
+    // If this event is received, it mean the admin has forced this agent to log out. So we clear local storage and redux state, then redirect to login page.
+    const handleForceLogout = (data) => {
+      if (data.agentId === agent._id) {
+        localStorage.removeItem("token");
+        dispatch(clearMyAgent());
+        window.location.href = "/";
+      }
+    };
+
+    socket.on("force-logout", handleForceLogout);
+    return () => socket.off("force-logout", handleForceLogout);
+  }, [agent?._id, dispatch]);
+
+  // Toggle break status (only if not busy)
   const handleToggleBreak = () => {
     if (!agent?._id || agent?.status === "busy") return;
     dispatch(toggleMyBreak(agent._id)).then(() => dispatch(fetchMyAgent()));
   };
 
+  // After call ends, refresh agent and call info to update UI
   const handleEndCall = async (callId) => {
     await dispatch(endMyCall(callId));
     dispatch(fetchMyCall(agent._id));
     dispatch(fetchMyAgent());
   };
 
+  // ✅ FIX 3: Correct API path — was "/logoutagent", should be "/agents/logoutagent"
   const handleLogout = async () => {
-    try { await API.post("/logoutagent"); } catch {}
+    try {
+      await API.post("/agents/logoutagent");
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
     localStorage.removeItem("token");
     dispatch(clearMyAgent());
     window.location.href = "/";
   };
 
-  // ── Guards ──
+  // Handle loading and no-agent states
   if (loading && !agent) return <LoadingState />;
-  if (!agent)            return <NoAgentState />;
+  if (!agent) return <NoAgentState />;
 
-  // ── Tab Content Map ──
+  // Tab content mapping 
   const tabContent = {
     dashboard: (
       <DashboardTab
@@ -240,16 +268,19 @@ export default function TelecallerPage() {
         loginTime={loginTime}
         onToggleBreak={handleToggleBreak}
         onEndCall={handleEndCall}
+        onOpenLeadForm={(phone) => {
+          setLeadFormPhone(phone || activeCall?.number || '');
+          setShowLeadForm(true);
+        }}
       />
     ),
     history: <BreakHistoryTab agent={agent} />,
-    calls:   <CallLogsTab    agent={agent} />,
-    missed:  <MissedCallsTab agent={agent} />,
+    calls: <CallLogsTab agent={agent} />,
+    missed: <MissedCallsTab agent={agent} />,
   };
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar */}
       <TelecallerSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -259,9 +290,7 @@ export default function TelecallerPage() {
         setCollapsed={setCollapsed}
       />
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-
         {/* Top Bar */}
         <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0 gap-4">
           <div>
@@ -288,9 +317,35 @@ export default function TelecallerPage() {
           </div>
         </div>
 
-        {/* Page Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {tabContent[activeTab]}
+
+          {/* Lead Form modal for telecaller */}
+          {showLeadForm && (
+            <div className="fixed inset-0 z-50 flex items-start justify-center p-6 bg-black/40">
+              <div className="w-full max-w-3xl bg-white rounded-2xl shadow-lg overflow-auto max-h-[90vh]">
+                <div className="flex items-center justify-between px-4 py-3 border-b">
+                  <h3 className="font-bold">New Lead (Agent: {agent.name})</h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowLeadForm(false)}
+                      className="px-3 py-1 rounded-md bg-slate-100 hover:bg-slate-200"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <LeadForm
+                    initialAssignedToId={agent?._id}
+                    initialAgentName={agent?.name}
+                    initialPhone={leadFormPhone}
+                    onSaved={() => setShowLeadForm(false)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

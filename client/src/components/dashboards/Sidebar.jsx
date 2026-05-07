@@ -39,6 +39,7 @@ const icons = {
     analytics,
     settings,
     leaves,
+    trend,
     telecaller: TelecallerIcon,
 };
 
@@ -50,6 +51,8 @@ const adminItems = [
   { label: "HR & Staff",  path: "/staff",        icon: icons.clients    },
   { label: "Task Management", path: "/tasks",    icon: icons.taskManagement},
   { label: "Enquiry",     path: "/enquiry",      icon: icons.enquiry    },
+  { label: "Reports",     path: "/reports",      icon: icons.analytics  },
+  { label: "Trends",      path: "/trends",       icon: icons.trend      },
   { label: "WhatsApp Leads", path: "/whatsapp-leads", icon: icons.telecaller },
   { label: "Settings",    path: "/settings",     icon: icons.settings   },
 ];
@@ -124,9 +127,9 @@ export default function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto p-2">
+      <nav className="flex-1 overflow-y-auto py-">
         {!collapsed && (
-          <p className="text-[10px] font-medium text-white/30 uppercase tracking-widest px-2 mb-2 mt-1">
+          <p className="text-[10px] font-medium text-white/30 uppercase tracking-widest px-4 mb-2 mt-1">
             Main menu
           </p>
         )}

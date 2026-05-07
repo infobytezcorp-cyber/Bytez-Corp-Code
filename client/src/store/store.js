@@ -8,6 +8,7 @@ import callReducer from "../features/callSlice";
 import agentReducer from "../features/agentSlice";
 import myAgentReducer from "../features/myAgentSlice";
 import callsReducer from "../features/callSlice";
+import taskReportReducer from "../features/taskReportSlice";
 
 export const store = configureStore({
   reducer: {
@@ -20,6 +21,7 @@ export const store = configureStore({
     agents: agentReducer,
     myAgent: myAgentReducer,
      calls: callsReducer,
+    taskReport: taskReportReducer,
   }
 });
 
