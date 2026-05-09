@@ -19,6 +19,10 @@ import detailsRoutes from "./src/routes/detailsRoutes.js";
 import enquiryRoutes from "./src/routes/enquiryRoutes.js";
 import callRoutes from "./src/routes/callRoutes.js";
 import agentRoutes from "./src/routes/agentRoutes.js";
+import nursingRoutes  from "./src/routes/nursingRoutes.js";
+import watchmanRoutes from "./src/routes/watchmanRoutes.js";
+import adminRoutes from "./src/routes/adminRoutes.js";
+
 
 import { startMissedCallAlerts } from "./src/controllers/callController.js";
 
@@ -103,6 +107,9 @@ app.use("/api/userdetails", detailsRoutes);
 app.use("/api/enquiries", enquiryRoutes);
 app.use("/api/calls", callRoutes);
 app.use("/api/agents", agentRoutes);
+app.use("/api/nursing",  nursingRoutes);
+app.use("/api/watchman", watchmanRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Start Server
 const startServer = async () => {

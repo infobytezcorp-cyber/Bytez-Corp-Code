@@ -70,7 +70,7 @@ router.post("/send-otp", async (req, res) => {
 // });
 
 router.post("/verify-otp", async (req, res) => {
-  const { name, phone, otp } = req.body;
+  const { name, phone, otp, purpose } = req.body;
 
   const record = await Otp.findOne({ phone, otp });
 
@@ -92,6 +92,7 @@ router.post("/verify-otp", async (req, res) => {
   const visitor = await Visitor.create({
     name,
     phone,
+    purpose,
     checkInTime: new Date(),
     status: "Checked-In",
   });

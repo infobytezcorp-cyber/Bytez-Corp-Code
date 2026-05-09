@@ -5,12 +5,14 @@ export const saveDetails = async (req, res) => {
     const {
       visitorId,
       visitType,
+      visitorCategory,
       name,
       phone,
       email,
       aadhaarnumber,
       bloodGroup,
       purpose,
+      visitPerson,
       jobRole,
       experience,
       address
@@ -21,16 +23,17 @@ export const saveDetails = async (req, res) => {
       return res.status(400).json({ message: "Required fields missing" });
     }
 
-    // create data
     const details = await VisitDetails.create({
       visitorId,
       visitType,
+      visitorCategory: visitType === "job" ? undefined : visitorCategory || "normal",
       name,
       phone,
       email,
       aadhaarnumber,
       bloodGroup,
       purpose,
+      visitPerson,
       jobRole,
       experience,
       address

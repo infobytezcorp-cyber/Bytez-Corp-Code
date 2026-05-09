@@ -47,6 +47,54 @@ export const register = async (req, res) => {
 };
 
 // LOGIN
+// export const login = async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+
+//     const user = await User.findOne({ email });
+//     if (!user) return res.status(400).json("User not found");
+
+//     const match = await bcrypt.compare(password, user.password);
+//     if (!match) return res.status(400).json("Wrong password");
+
+//     // const token = jwt.sign(
+//     //     { id: user._id, role: user.role },
+//     //     process.env.JWT_SECRET,
+//     //     { expiresIn: "1h" }
+//     // );
+
+//     const token = jwt.sign(
+//       { _id: user._id, role: user.role },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "1h" }
+//     );
+
+//     if (user.role === "telecaller") {
+//       const now = new Date();
+//       await Agent.findOneAndUpdate(
+//         { linkedUser: user._id },
+//         {
+//           $set: {
+//             loginTime: now,
+//             status: "available"
+//           }
+//         },
+//         { returnDocument: "after" }
+//       );
+//     }
+//     res.json({
+//       token,
+//       role: user.role,
+//       name: user.name,
+//       email: user.email
+//     });
+
+//   } catch (err) {
+//     res.status(500).json(err.message);
+//   }
+// };
+
+
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -57,53 +105,36 @@ export const login = async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json("Wrong password");
 
-    // const token = jwt.sign(
-    //     { id: user._id, role: user.role },
-    //     process.env.JWT_SECRET,
-    //     { expiresIn: "1h" }
-    // );
-
     const token = jwt.sign(
       { _id: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "8h" }   // 8hr — shift coverage
     );
 
+    // telecaller → agent loginTime update (existing logic)
     if (user.role === "telecaller") {
-      const now = new Date();
       await Agent.findOneAndUpdate(
         { linkedUser: user._id },
-        {
-          $set: {
-            loginTime: now,
-            status: "available"
-          }
-        },
-        { returnDocument: "after" }
+        { $set: { loginTime: new Date(), status: "available" } }
       );
     }
 
-    // if (user.role === "telecaller") {
-    //   await Agent.findOneAndUpdate(
-    //     { linkedUser: user._id },
-    //     {
-    //       $set: { loginTime: new Date() },
-    //       $push: {
-    //         loginHistory: {
-    //           loginTime: new Date()
-    //         }
-    //       }
-    //     },
-    //     { returnDocument: "after" }
-    //   );
-    // }
-
+    // redirect path per role — frontend uses this
+    const redirectMap = {
+      admin:      "/admin",
+      manager:    "/manager",
+      telecaller: "/telecaller",
+      nursing:    "/nursing",
+      watchman:   "/watchman",
+      user:       "/user",
+    };
 
     res.json({
       token,
-      role: user.role,
-      name: user.name,
-      email: user.email
+      role:     user.role,
+      name:     user.name,
+      email:    user.email,
+      redirect: redirectMap[user.role] ?? "/user",
     });
 
   } catch (err) {

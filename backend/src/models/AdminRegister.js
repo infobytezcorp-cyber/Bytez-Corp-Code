@@ -1,0 +1,37 @@
+import mongoose from "mongoose";
+
+const AdminRegisterSchema = new mongoose.Schema({
+  section: { type: String, required: true },
+  name: { type: String },
+  role: { type: String },
+  phone: { type: String },
+  email: { type: String },
+  category: { type: String },
+  amount: { type: Number, default: 0 },
+  date: { type: Date, required: true },
+  itemName: { type: String },
+  recordType: { type: String },
+  operation: { type: String, enum: ["received", "used"] },
+  openingStock: { type: Number, default: 0 },
+  received: { type: Number, default: 0 },
+  issued: { type: Number, default: 0 },
+  closingStock: { type: Number, default: 0 },
+  voucherNo: { type: String },
+  paidTo: { type: String },
+  debit: { type: Number, default: 0 },
+  credit: { type: Number, default: 0 },
+  balance: { type: Number, default: 0 },
+  interest: { type: String },
+  condition: { type: String },
+  location: { type: String },
+  assetId: { type: String },
+  patientName: { type: String },
+  patientId: { type: String },
+  purpose: { type: String },
+  remarks: { type: String },
+  recordedBy: { type: String },
+  details: { type: String },
+  status: { type: String },
+}, { timestamps: true, strict: false });
+
+export default mongoose.model("AdminRegister", AdminRegisterSchema);

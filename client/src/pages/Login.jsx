@@ -17,6 +17,8 @@ export default function Login() {
             if (role === "admin") navigate("/admin");
             else if (role === "manager") navigate("/manager");
             else if (role === "telecaller") navigate("/telecaller");
+            else if (role === "nursing") navigate("/nursing");
+            else if (role === "watchman") navigate("/watchman");
             else navigate("/user");
         }
     }, [navigate]);
@@ -42,6 +44,8 @@ export default function Login() {
             if (res.data.role === "admin") navigate("/admin");
             else if (res.data.role === "manager") navigate("/manager");
             else if (res.data.role === "telecaller") navigate("/telecaller");
+            else if (res.data.role === "nursing") navigate("/nursing");
+            else if (res.data.role === "watchman") navigate("/watchman");
             else navigate("/user");
 
         } catch (err) {

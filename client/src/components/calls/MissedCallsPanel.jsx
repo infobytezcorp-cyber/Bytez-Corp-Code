@@ -11,6 +11,7 @@ const today      = () => toDateStr(new Date());
 
 export default function MissedCallsPanel({ calls = [], onSelect }) {
   const [dateFilter, setDateFilter] = useState(today());
+  const [searchQuery, setSearchQuery] = useState("");
   const [now, setNow] = useState(Date.now());
 
   // 1. ஒவ்வொரு நிமிடமும் நேரத்தைப் புதுப்பிக்க (Real-time tracking)
@@ -21,11 +22,18 @@ export default function MissedCallsPanel({ calls = [], onSelect }) {
 
   // Filter missed calls by selected date
   const missedCalls = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
     return calls
       .filter(c => c.status === "missed")
       .filter(c => !dateFilter || toDateStr(c.createdAt || c.startTime) === dateFilter)
+      .filter(c => {
+        if (!normalizedQuery) return true;
+        const callerName = (c.contact?.name || c.name || c.number || "").toLowerCase();
+        const number = (c.number || c.contact?.phone || "").toString().toLowerCase();
+        return callerName.includes(normalizedQuery) || number.includes(normalizedQuery);
+      })
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }, [calls, dateFilter]);
+  }, [calls, dateFilter, searchQuery]);
 
   // 2. 1 மணிநேரம் கடந்த கால்களைக் கணக்கிடுதல்
   const overdueCount = useMemo(() => {
@@ -76,12 +84,28 @@ export default function MissedCallsPanel({ calls = [], onSelect }) {
               <p className="text-xs text-slate-400 mt-0.5">Real-time tracking of agent response time</p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-1.5">
+                <Search className="h-4 w-4 text-slate-400" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search caller or number"
+                  className="w-48 bg-transparent text-xs font-medium text-slate-700 outline-none placeholder:text-slate-400"
+                />
+              </div>
               <input
                 type="date"
                 value={dateFilter}
                 onChange={e => setDateFilter(e.target.value)}
                 className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-200 bg-white cursor-pointer"
               />
+              <button
+                onClick={() => { setSearchQuery(""); setDateFilter(""); }}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Clear
+              </button>
               {missedCalls.length > 0 && (
                 <span className={`text-xs px-2.5 py-1 rounded-full font-bold border ${
                   overdueCount > 0 ? "bg-red-50 text-red-600 border-red-200 animate-pulse" : "bg-slate-50 text-slate-400 border-slate-200"

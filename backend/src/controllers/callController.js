@@ -485,7 +485,7 @@ export const callbackCall = async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 export const getAllCalls = async (req, res) => {
   try {
-    const { date, status, agentId } = req.query;
+    const { date, status, agentId, limit } = req.query;
     const filter = {};
     if (date) {
       const start = new Date(date); start.setHours(0, 0, 0, 0);
@@ -495,11 +495,13 @@ export const getAllCalls = async (req, res) => {
     if (status) filter.status = status;
     if (agentId) filter.agent = agentId;
 
+    const pageSize = Math.min(Math.max(parseInt(limit, 10) || 200, 1), 5000);
+
     const calls = await Call.find(filter)
       .populate("agent", "name status")
       .populate("assignedTo", "name")
       .populate("contact", "name phone")
-      .sort({ createdAt: -1 }).limit(200);
+      .sort({ createdAt: -1 }).limit(pageSize);
 
     res.status(200).json({ success: true, data: calls });
   } catch (error) {

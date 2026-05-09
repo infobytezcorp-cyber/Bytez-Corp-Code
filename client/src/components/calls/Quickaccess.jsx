@@ -1,14 +1,13 @@
-/* components/calls/QuickAccess.jsx
-   ─────────────────────────────────
-   Quick-access tiles for User Call Report & User Login Report.
-   Props:
-     onOpen(reportType)  → "call" | "login"
-*/
+// src/components/calls/QuickAccess.jsx
+// Matches the Enquiry Live Dashboard design from screenshots
+// Props: onOpen(reportType) → "call" | "login"
+
 import { useState } from "react";
 
 const T = {
   card:        "#FFFFFF",
   border:      "#E8EAF0",
+  borderLight: "#F0F1F6",
   text:        "#1A1D2E",
   muted:       "#8B90A7",
   accent:      "#4F6EF7",
@@ -23,83 +22,79 @@ const T = {
 
 const TILES = [
   {
-    id:      "call",
-    label:   "User Call Report",
-    sub:     "Calls · Missed · Answered",
-    icon:    "📞",
-    color:   T.green,
-    soft:    T.greenSoft,
+    id:    "call",
+    label: "Call report",
+    icon:  "📞",
+    color: T.text,
+    soft:  T.borderLight,
+    border: T.border,
   },
   {
-    id:      "login",
-    label:   "User Login Report",
-    sub:     "Login · Hours · Breaks",
-    icon:    "🧑‍💼",
-    color:   T.accent,
-    soft:    T.accentSoft,
+    id:    "login",
+    label: "Login report",
+    icon:  "↗",
+    iconStyle: {
+      fontSize:   15,
+      fontWeight: 700,
+      color:      "#fff",
+      background: T.text,
+      borderRadius: "50%",
+      width:      28,
+      height:     28,
+      display:    "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    color: T.text,
+    soft:  T.text,
+    border: T.text,
+    dark:  true,
   },
 ];
 
 function Tile({ tile, onOpen }) {
   const [hov, setHov] = useState(false);
+
+  const isDark = tile.dark;
+
   return (
     <button
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       onClick={() => onOpen(tile.id)}
       style={{
-        display:        "flex",
-        alignItems:     "center",
-        gap:            12,
-        padding:        "12px 18px",
-        background:     T.card,
-        border:         `1.5px solid ${hov ? tile.color + "60" : T.border}`,
-        borderRadius:   T.radius,
-        boxShadow:      hov ? T.shadowHover : T.shadow,
-        transform:      hov ? "translateY(-2px)" : "translateY(0)",
-        transition:     "all .2s ease",
-        cursor:         "pointer",
-        fontFamily:     T.font,
-        textAlign:      "left",
-        minWidth:       190,
+        display:      "inline-flex",
+        alignItems:   "center",
+        gap:          8,
+        padding:      "9px 18px",
+        background:   isDark
+          ? (hov ? "#2D3148" : T.text)
+          : (hov ? T.bg || "#F5F6FA" : T.card),
+        border:       `1.5px solid ${isDark ? T.text : T.border}`,
+        borderRadius: 10,
+        boxShadow:    hov ? T.shadowHover : T.shadow,
+        transform:    hov ? "translateY(-1px)" : "translateY(0)",
+        transition:   "all .18s ease",
+        cursor:       "pointer",
+        fontFamily:   T.font,
+        textAlign:    "left",
       }}
     >
-      {/* icon bubble */}
-      <div style={{
-        width:          40,
-        height:         40,
-        borderRadius:   11,
-        background:     tile.soft,
-        display:        "flex",
-        alignItems:     "center",
-        justifyContent: "center",
-        fontSize:       18,
-        flexShrink:     0,
-        transition:     "transform .2s",
-        transform:      hov ? "scale(1.1)" : "scale(1)",
-      }}>
-        {tile.icon}
-      </div>
+      {/* Icon */}
+      {tile.iconStyle ? (
+        <span style={{ ...tile.iconStyle }}>{tile.icon}</span>
+      ) : (
+        <span style={{ fontSize: 15 }}>{tile.icon}</span>
+      )}
 
-      {/* text */}
-      <div style={{ flex: 1 }}>
-        <p style={{ fontSize: 13, fontWeight: 700, color: T.text, margin: 0 }}>
-          {tile.label}
-        </p>
-        <p style={{ fontSize: 10, color: T.muted, margin: "2px 0 0", letterSpacing: .4 }}>
-          {tile.sub}
-        </p>
-      </div>
-
-      {/* chevron */}
+      {/* Label */}
       <span style={{
         fontSize:   13,
-        color:      hov ? tile.color : T.muted,
-        fontWeight: 700,
-        transition: "color .2s, transform .2s",
-        transform:  hov ? "translateX(3px)" : "translateX(0)",
+        fontWeight: 600,
+        color:      isDark ? "#fff" : T.text,
+        whiteSpace: "nowrap",
       }}>
-        ›
+        {tile.label}
       </span>
     </button>
   );
@@ -107,19 +102,16 @@ function Tile({ tile, onOpen }) {
 
 export default function QuickAccess({ onOpen }) {
   return (
-    <div style={{ marginBottom: 20 }}>
-      {/* heading */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, color: T.muted, letterSpacing: 1.4, textTransform: "uppercase" }}>
-          ⚡ Quick Access
-        </span>
-      </div>
-
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {TILES.map(t => (
-          <Tile key={t.id} tile={t} onOpen={onOpen} />
-        ))}
-      </div>
+    <div style={{
+      display:      "flex",
+      alignItems:   "center",
+      gap:          8,
+      marginBottom: 20,
+      flexWrap:     "wrap",
+    }}>
+      {TILES.map(t => (
+        <Tile key={t.id} tile={t} onOpen={onOpen} />
+      ))}
     </div>
   );
 }

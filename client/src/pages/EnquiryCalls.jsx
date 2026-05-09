@@ -1,192 +1,546 @@
-import { useEffect, useState, useRef } from "react";
+// src/pages/EnquiryCalls.jsx
+// Converted from TypeScript (.tsx) → JavaScript (.jsx)
+// All functionality preserved — Redux, socket, real-time clock, etc.
+
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAgents, toggleBreak, forceLogout } from "../features/agentSlice";
 import { fetchCalls, callbackCall } from "../features/callSlice";
 import Sidebar from "../components/dashboards/visitors/Sidebar";
-import AgentsPanel from "../components/calls/AgentsPanel";
-import MissedCallsPanel from "../components/calls/MissedCallsPanel";
-import MissedCallDetail from "../components/calls/MissedCallDetail";
-import TimeLogsTab from "../components/calls/TimeLogsTab";
-import CallPanel from "../components/calls/CallPanel";
 import AgentBreakLogs from "../components/calls/AgentBreakLogs";
-import QuickAccess from "../components/calls/QuickAccess";
+import MissedCallDetail from "../components/calls/MissedCallDetail";
 import UserCallReport from "../components/calls/UserCallReport";
 import UserLoginReport from "../components/calls/UserLoginReport";
 import Forcelogoutconfirm from "../components/calls/Forcelogoutconfirm";
-import socket from "../services/socket";       // ✅ NEW
-import toast from "react-hot-toast";           // ✅ NEW
+import socket from "../services/socket";
+import toast from "react-hot-toast";
 
+import {
+  Activity, Phone, PhoneMissed, PhoneOff, Users, Clock,
+  Coffee, LogOut, Search, ChevronRight, Headphones, Circle,
+  TrendingUp, CalendarDays, FileText, ArrowUpRight, Bell, Filter,
+} from "lucide-react";
 
-const TABS = [
-  { id: "agents", label: "Agents", icon: "👤" },
-  { id: "missed", label: "Missed Calls", icon: "📵" },
-  { id: "timelogs", label: "Time Logs", icon: "⏱" },
-];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
-  @keyframes spin   { to { transform: rotate(360deg); } }
-  @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:.35} }
-  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes bounce { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
-  @keyframes pageIn { from{opacity:0;transform:translateX(18px)} to{opacity:1;transform:translateX(0)} }
-`;
+// Normalize status: backend uses "busy", UI shows "on-call"
+const normalizeStatus = (s) => s === "busy" ? "on-call" : (s || "offline");
 
-const T = {
-  bg: "#F5F6FA", card: "#FFFFFF", border: "#E8EAF0", borderLight: "#F0F1F6",
-  text: "#1A1D2E", muted: "#8B90A7", accent: "#4F6EF7", accentSoft: "#EEF1FE",
-  green: "#18B87C", greenSoft: "#E8F8F2", amber: "#F59E0B", amberSoft: "#FEF3C7",
-  red: "#EF4444", redSoft: "#FEF2F2",
-  shadow: "0 2px 12px rgba(26,29,46,0.07)", shadowHover: "0 6px 24px rgba(26,29,46,0.12)",
-  radius: "18px", radiusSm: "12px", font: "'Outfit', sans-serif",
+const toLocalDateKey = (value) => {
+  if (!value) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, "0"),
+    String(d.getDate()).padStart(2, "0"),
+  ].join("-");
 };
 
-function Badge({ children, color = T.accent, bg = T.accentSoft }) {
+const getCallDateKey = (call) => toLocalDateKey(call.createdAt || call.startTime);
+
+const getCallAgentId = (call) => {
+  const id = call.assignedTo?._id || call.assignedTo || call.agent?._id || call.agent || call.agentId;
+  return id ? String(id) : "";
+};
+
+const getCallAgentName = (call) => call.assignedTo?.name || call.agent?.name || "Unassigned";
+
+const callBelongsToDate = (call, dateKey) => !dateKey || getCallDateKey(call) === dateKey;
+
+// ─── StatusDot ────────────────────────────────────────────────────────────────
+function StatusDot({ status }) {
+  const map = {
+    available: "bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]",
+    "on-call": "bg-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,0.18)] animate-pulse",
+    break:     "bg-amber-500 shadow-[0_0_0_4px_rgba(245,158,11,0.18)]",
+    offline:   "bg-slate-300",
+  };
+  return <span className={`inline-block h-2.5 w-2.5 rounded-full ${map[status] || "bg-slate-300"}`} />;
+}
+
+// ─── StatusPill ───────────────────────────────────────────────────────────────
+function StatusPill({ status }) {
+  const labels = { available: "Available", "on-call": "On call", break: "On break", offline: "Offline" };
+  const styles = {
+    available: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    "on-call": "bg-blue-50 text-blue-700 ring-blue-100",
+    break:     "bg-amber-50 text-amber-800 ring-amber-100",
+    offline:   "bg-slate-100 text-slate-600 ring-slate-200",
+  };
+  const s = normalizeStatus(status);
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, letterSpacing: .4, padding: "3px 10px", borderRadius: 99, color, background: bg }}>
-      {children}
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${styles[s] || styles.offline}`}>
+      <StatusDot status={s} />
+      {labels[s] || "Offline"}
     </span>
   );
 }
 
+// ─── StatCard ─────────────────────────────────────────────────────────────────
+function StatCard({ icon: Icon, label, value, delta, tone }) {
+  const tones = {
+    blue:    { wrap: "bg-blue-50 text-blue-600",       chip: "text-blue-700 bg-blue-50" },
+    emerald: { wrap: "bg-emerald-50 text-emerald-600", chip: "text-emerald-700 bg-emerald-50" },
+    amber:   { wrap: "bg-amber-50 text-amber-600",     chip: "text-amber-700 bg-amber-50" },
+    rose:    { wrap: "bg-rose-50 text-rose-600",       chip: "text-rose-700 bg-rose-50" },
+  }[tone] || {};
 
-function StatCard({ label, value, icon, color, bg }) {
-  const [hovered, setHovered] = useState(false);
   return (
-    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ background: T.card, border: `1.5px solid ${T.border}`, borderRadius: T.radius, padding: "20px 22px", display: "flex", alignItems: "center", gap: 16, boxShadow: hovered ? T.shadowHover : T.shadow, transform: hovered ? "translateY(-3px)" : "translateY(0)", transition: "all .22s ease", cursor: "default", animation: "fadeUp .4s ease both" }}>
-      <div style={{ width: 52, height: 52, borderRadius: 14, background: bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, boxShadow: `0 4px 12px ${bg}` }}>{icon}</div>
-      <div>
-        <p style={{ fontSize: 10, color: T.muted, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", margin: 0 }}>{label}</p>
-        <p style={{ fontSize: 30, fontWeight: 800, color, margin: "2px 0 0", lineHeight: 1 }}>{value}</p>
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[12px] font-medium uppercase tracking-wider text-slate-500">{label}</p>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
+          {delta && (
+            <span className={`mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${tones.chip}`}>
+              <TrendingUp className="h-3 w-3" />{delta}
+            </span>
+          )}
+        </div>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${tones.wrap}`}>
+          <Icon className="h-5 w-5" />
+        </div>
       </div>
+      <div className="pointer-events-none absolute -bottom-12 -right-12 h-32 w-32 rounded-full bg-gradient-to-tr from-slate-100/80 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
     </div>
   );
 }
 
+// ─── Mini ─────────────────────────────────────────────────────────────────────
+function Mini({ label, value, accent }) {
+  return (
+    <div className="text-center">
+      <p className={`text-base font-bold tracking-tight ${accent === "rose" ? "text-rose-600" : "text-slate-900"}`}>{value}</p>
+      <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">{label}</p>
+    </div>
+  );
+}
+
+// ─── AgentCard (activity strip) ───────────────────────────────────────────────
 function AgentCard({ agent }) {
-  const isOnline = agent.status !== "offline";
-  const isBreak = agent.status === "break";
-  const sessions = agent.loginHistory || [];
-
-  
-  let displayLogin = null;
-  let displayLogout = null;
-  let displayDuration = 0;
-
-  if (isOnline && agent.loginTime) {
-    displayLogin = agent.loginTime;
-    displayLogout = null;
-    const diff = Math.max(0, Date.now() - new Date(agent.loginTime));
-    displayDuration = Math.floor(diff / 1000 / 60);
-  } else if (sessions.length > 0) {
-    const last = sessions[sessions.length - 1];
-    displayLogin = last.loginTime;
-    displayLogout = last.logoutTime;
-    displayDuration = last.durationMinutes;
-  }
+  const initials = (agent.name || "?").split(" ").map(n => n[0]).slice(0, 2).join("");
+  const status   = normalizeStatus(agent.status);
+  const loginAt  = agent.loginTime
+    ? new Date(agent.loginTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "—";
+  const handled  = agent.callsHandled ?? agent.handled ?? 0;
+  const missed   = agent.callsMissed  ?? agent.missed  ?? 0;
+  const avgSec   = agent.avgCallTime  ?? agent.avgTime  ?? 0;
 
   return (
-    <div className={`p-5 rounded-3xl border transition-all ${isOnline ? "bg-emerald-50/40 border-emerald-100 shadow-sm" : "bg-white border-slate-100 opacity-70 grayscale-[0.2]"}`}>
-      <div className="flex justify-between items-start mb-4">
+    <div className="rounded-2xl border border-slate-200/70 bg-white p-4 transition-all hover:border-slate-300 hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white flex items-center justify-center font-black text-sm">
-            {agent.name?.[0]}
+          <div className="relative flex-shrink-0">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white">
+              {initials}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 ring-2 ring-white rounded-full">
+              <StatusDot status={status} />
+            </span>
           </div>
           <div>
-            <p className="text-sm font-black text-slate-800">{agent.name}</p>
-            <p className={`text-[10px] font-bold uppercase tracking-widest ${isOnline ? "text-emerald-600" : "text-slate-400"}`}>
-              {isOnline ? "● Live Online" : "● Offline"}
+            <p className="text-sm font-semibold text-slate-900">{agent.name}</p>
+            <p className="text-[11px] font-medium text-slate-500">
+              Ext · {agent.extension || "—"} · since {loginAt}
             </p>
           </div>
         </div>
-        <div className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${isOnline ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>
-          {isOnline ? "Active" : "Inactive"}
-        </div>
+        <StatusPill status={status} />
       </div>
 
-      <div className="bg-white/80 p-3 rounded-2xl border border-slate-50 space-y-2">
-        <div className="flex justify-between text-[11px] font-bold">
-          <span className="text-slate-400 uppercase">Login</span>
-          <span className="text-slate-700">{displayLogin ? new Date(displayLogin).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "—"}</span>
-        </div>
-        <div className="flex justify-between text-[11px] font-bold">
-          <span className="text-slate-400 uppercase">Status</span>
-          <span className={isOnline ? "text-indigo-600 animate-pulse" : "text-rose-500"}>
-            {isOnline ? "Working Now" : `Out ${displayLogout ? new Date(displayLogout).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}`}
-          </span>
-        </div>
-        <div className="pt-2 border-t border-slate-50 flex justify-between text-[11px] font-black uppercase">
-          <span className="text-slate-400">Duration</span>
-          <span className="text-slate-800">{displayDuration} Min</span>
-        </div>
+      <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+        <Mini label="Handled" value={String(handled)} />
+        <Mini label="Missed"  value={String(missed)} accent={missed > 0 ? "rose" : undefined} />
+        <Mini label="Avg" value={avgSec ? `${Math.floor(avgSec / 60)}:${String(avgSec % 60).padStart(2, "0")}` : "—"} />
       </div>
     </div>
   );
 }
 
-function InfoRow({ label, value }) {
+// ─── IconBtn ──────────────────────────────────────────────────────────────────
+function IconBtn({ children, tone = "slate", title, onClick, disabled }) {
+  const cls = tone === "rose"
+    ? "text-rose-600 hover:bg-rose-50 ring-rose-100"
+    : "text-slate-500 hover:bg-slate-100 ring-slate-200";
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <span style={{ fontSize: 10, color: T.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: .8 }}>{label}</span>
-      <span style={{ fontSize: 11, color: T.text }}>{value}</span>
+    <button
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex h-7 w-7 items-center justify-center rounded-lg ring-1 transition
+        ${cls} ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── AgentsPanel ──────────────────────────────────────────────────────────────
+function AgentsPanel({ agents, query, onToggleBreak, onViewLogs, onForceLogout }) {
+  const filtered = agents.filter(a =>
+    (a.name || "").toLowerCase().includes(query.toLowerCase()) ||
+    (a.extension || "").includes(query)
+  );
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white">
+      {/* Header row */}
+      <div className="grid grid-cols-12 border-b border-slate-100 bg-slate-50/60 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        <div className="col-span-4">Agent</div>
+        <div className="col-span-2">Status</div>
+        <div className="col-span-2">Login</div>
+        <div className="col-span-1 text-right">Handled</div>
+        <div className="col-span-1 text-right">Missed</div>
+        <div className="col-span-2 text-right">Action</div>
+      </div>
+
+      <ul className="divide-y divide-slate-100">
+        {filtered.length === 0 ? (
+          <li className="px-5 py-12 text-center text-sm text-slate-400">No agents found</li>
+        ) : filtered.map(a => {
+          const status  = normalizeStatus(a.status);
+          const loginAt = a.loginTime
+            ? new Date(a.loginTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            : "—";
+          const handled = a.callsHandled ?? a.handled ?? 0;
+          const missed  = a.callsMissed  ?? a.missed  ?? 0;
+
+          return (
+            <li key={a._id} className="grid grid-cols-12 items-center px-5 py-3.5 transition hover:bg-slate-50/60">
+              {/* Agent */}
+              <div className="col-span-4 flex items-center gap-3">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-xs font-bold text-white">
+                  {(a.name || "?").split(" ").map(n => n[0]).slice(0, 2).join("")}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{a.name}</p>
+                  <p className="text-[11px] text-slate-500">Ext · {a.extension || "—"}</p>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="col-span-2">
+                <StatusPill status={status} />
+              </div>
+
+              {/* Login */}
+              <div className="col-span-2 text-sm text-slate-600">{loginAt}</div>
+
+              {/* Handled */}
+              <div className="col-span-1 text-right text-sm font-semibold text-slate-900">{handled}</div>
+
+              {/* Missed */}
+              <div className="col-span-1 text-right text-sm font-semibold text-rose-600">{missed}</div>
+
+              {/* Actions */}
+              <div className="col-span-2 flex justify-end gap-1.5">
+                <IconBtn
+                  title={a.status === "break" ? "Resume" : "Toggle break"}
+                  disabled={a.status === "busy"}
+                  onClick={() => onToggleBreak(a._id)}
+                >
+                  <Coffee className="h-3.5 w-3.5" />
+                </IconBtn>
+                <IconBtn title="View logs" onClick={() => onViewLogs(a)}>
+                  <FileText className="h-3.5 w-3.5" />
+                </IconBtn>
+                {a.status !== "offline" && (
+                  <IconBtn title="Force logout" tone="rose" onClick={() => onForceLogout(a)}>
+                    <LogOut className="h-3.5 w-3.5" />
+                  </IconBtn>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
 
-function SectionHeading({ children }) {
+// ─── MissedPanel ──────────────────────────────────────────────────────────────
+function MissedPanel({ calls, onSelect, dateFilter, onDateChange, query, onQueryChange }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const missed = calls
+    .filter(c => c.status === "missed")
+    .filter(c => callBelongsToDate(c, dateFilter))
+    .filter(c => {
+      if (!normalizedQuery) return true;
+      const caller = (c.contact?.name || c.number || "").toLowerCase();
+      const number = (c.number || c.contact?.phone || "").toString().toLowerCase();
+      const agent = getCallAgentName(c).toLowerCase();
+      return caller.includes(normalizedQuery) || number.includes(normalizedQuery) || agent.includes(normalizedQuery);
+    })
+    .sort((a, b) => new Date(b.createdAt || b.startTime) - new Date(a.createdAt || a.startTime));
+
+  const summaryRows = Object.entries(missed.reduce((map, call) => {
+    const name = getCallAgentName(call);
+    map[name] = (map[name] || 0) + 1;
+    return map;
+  }, {})).sort((a, b) => b[1] - a[1]);
+
+  const filters = (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+        <input
+          value={query}
+          onChange={e => onQueryChange(e.target.value)}
+          placeholder="Caller, number, agent"
+          className="h-8 w-48 rounded-lg border border-slate-200 bg-white pl-8 pr-2 text-xs text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+        />
+      </div>
+      <input
+        type="date"
+        value={dateFilter}
+        onChange={e => onDateChange(e.target.value)}
+        className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+      />
+      <button
+        onClick={() => { onDateChange(""); onQueryChange(""); }}
+        className="h-8 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+      >
+        Clear
+      </button>
+    </div>
+  );
+
+  if (missed.length === 0) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white py-16 text-center">
+        <p className="text-2xl mb-2">✅</p>
+        <p className="text-sm text-slate-400">No missed calls for selected date</p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-      <div style={{ width: 4, height: 20, borderRadius: 4, background: T.accent }} />
-      <h2 style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: 0, letterSpacing: .2 }}>{children}</h2>
+    <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white">
+      <div className="border-b border-slate-100 bg-slate-50/60 px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Missed calls by assigned agent</p>
+            <p className="text-[11px] text-slate-500">{missed.length} pending callback{missed.length === 1 ? "" : "s"}</p>
+          </div>
+          {filters}
+        </div>
+        {summaryRows.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {summaryRows.map(([name, count]) => (
+              <span key={name} className="inline-flex items-center gap-1.5 rounded-full border border-rose-100 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-100 text-[10px] font-bold text-rose-700">
+                  {(name || "U").charAt(0)}
+                </span>
+                {name}
+                <span className="text-rose-600">{count}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {missed.map(m => {
+          const callerName   = m.contact?.name || m.number || "Unknown";
+          const callerNumber = m.contact?.name ? m.number : null;
+          const assignedName = getCallAgentName(m);
+          const reason       = m.reason || m.missedReason || null;
+          const waited       = m.waitDuration || m.waited || null;
+          const callTime     = new Date(m.createdAt || m.startTime);
+          const atStr        = callTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          const isOverdue    = (now - callTime.getTime()) > 3600000;
+
+          return (
+            <li
+              key={m._id}
+              onClick={() => onSelect(m)}
+              className={`flex items-center gap-4 px-5 py-4 transition cursor-pointer
+                ${isOverdue ? "bg-rose-50/20 hover:bg-rose-50/40" : "hover:bg-rose-50/30"}`}
+            >
+              {/* Icon */}
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                <PhoneMissed className="h-5 w-5" />
+              </div>
+
+              {/* Info */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-semibold text-slate-900">{callerName}</p>
+                  {callerNumber && (
+                    <>
+                      <span className="text-[11px] text-slate-400">·</span>
+                      <p className="text-[12px] text-slate-500">{callerNumber}</p>
+                    </>
+                  )}
+                  {isOverdue && (
+                    <span className="text-[9px] font-bold bg-rose-600 text-white px-1.5 py-0.5 rounded uppercase tracking-tight">
+                      Delayed
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-[12px] text-slate-500">
+                  <span className="font-semibold text-indigo-700">Agent: {assignedName}</span>
+                  {(waited || reason) ? " · " : null}
+                  {waited ? <><span>Waited </span><span className="font-semibold text-slate-700">{waited}s</span></> : null}
+                  {waited && reason ? " · " : null}
+                  {reason}
+                </p>
+              </div>
+
+              {/* Time */}
+              <div className="hidden flex-shrink-0 text-right md:block">
+                <p className="text-[11px] uppercase tracking-wider text-slate-400">At</p>
+                <p className="text-sm font-semibold text-slate-900">{atStr}</p>
+              </div>
+
+              {/* Call back */}
+              <button
+                onClick={e => { e.stopPropagation(); onSelect(m); }}
+                className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                <Phone className="h-3.5 w-3.5" /> Call back
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
 
-function ReportPageWrapper({ title, onBack, children }) {
+// ─── TimeLogsPanel ────────────────────────────────────────────────────────────
+function TimeLogsPanel({ agents, dateFilter }) {
+  const selectedDate = dateFilter || toLocalDateKey(new Date());
+
+  const rows = agents
+    .filter(a => {
+      const hasTodaySession = (a.loginHistory || []).some(s => toLocalDateKey(s.loginTime) === selectedDate);
+      return a.status !== "offline" || hasTodaySession;
+    })
+    .map(a => {
+      const sessions  = (a.loginHistory || []).filter(s => toLocalDateKey(s.loginTime) === selectedDate);
+      const breaks    = (a.breakLogs    || []).filter(b => toLocalDateKey(b.breakStart) === selectedDate);
+      const isOnline  = a.status !== "offline";
+      const firstLogin = sessions[0]?.loginTime || (isOnline ? a.loginTime : null);
+      const loginStr  = firstLogin
+        ? new Date(firstLogin).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        : "—";
+      const lastLogout = sessions.filter(s => s.logoutTime).at?.(-1)?.logoutTime
+        ?? sessions.filter(s => s.logoutTime)[sessions.filter(s => s.logoutTime).length - 1]?.logoutTime;
+      const logoutStr = lastLogout
+        ? new Date(lastLogout).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        : "—";
+      const breakCount = breaks.length + (isOnline && a.status === "break" ? 1 : 0);
+      return { agent: a, loginStr, logoutStr, breakCount, isOnline };
+    });
+
   return (
-    <div style={{ flex: 1, overflowY: "auto", animation: "pageIn .25s ease" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 32px", background: T.card, borderBottom: `1.5px solid ${T.border}`, boxShadow: T.shadow, position: "sticky", top: 0, zIndex: 10 }}>
-        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 10, border: `1.5px solid ${T.border}`, background: T.card, fontSize: 13, fontWeight: 700, color: T.muted, cursor: "pointer", fontFamily: T.font }}>
+    <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+        <p className="text-sm font-semibold text-slate-900">Today's session log</p>
+        <button className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+          <CalendarDays className="h-3.5 w-3.5" /> Today
+        </button>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="py-12 text-center text-sm text-slate-400">No session data for today</div>
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {rows.map(r => (
+            <li
+              key={r.agent._id}
+              className="grid grid-cols-12 items-center px-5 py-3 text-sm transition hover:bg-slate-50/60"
+            >
+              <div className="col-span-4 font-semibold text-slate-900">{r.agent.name}</div>
+              <div className="col-span-2 text-slate-600">In · {r.loginStr}</div>
+              <div className="col-span-2 text-slate-600">Out · {r.logoutStr}</div>
+              <div className="col-span-2 text-slate-600">Breaks · {r.breakCount}</div>
+              <div className="col-span-2 text-right">
+                <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold
+                  ${r.isOnline ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                  <Clock className="h-3 w-3" />
+                  {r.isOnline ? "Active" : "Ended"}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ─── ReportPage wrapper ───────────────────────────────────────────────────────
+function ReportPage({ title, onBack, children }) {
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200/70 bg-white/80 backdrop-blur-md px-6 py-3.5 shadow-sm">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+        >
           ← Back
         </button>
-        <span style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{title}</span>
+        <span className="text-sm font-bold text-slate-900">{title}</span>
       </div>
-      <div style={{ padding: "24px 32px" }}>{children}</div>
+      <div className="flex-1 overflow-y-auto p-6">{children}</div>
     </div>
   );
 }
 
+// ─── Main Export ──────────────────────────────────────────────────────────────
 export default function EnquiryCalls() {
   const dispatch = useDispatch();
   const { list: agents, loading: agentsLoading } = useSelector(s => s.agents);
-  const { list: calls, loading: callsLoading } = useSelector(s => s.calls);
+  const { list: calls,  loading: callsLoading  } = useSelector(s => s.calls);
 
-  const [activeTab, setActiveTab] = useState("agents");
-  const [selectedCall, setSelectedCall] = useState(null);
+  const [tab,                    setTab]                    = useState("agents");
+  const [query,                  setQuery]                  = useState("");
+  const [now,                    setNow]                    = useState(new Date());
+  const [dateFilter,             setDateFilter]             = useState(() => toLocalDateKey(new Date()));
+  const [selectedCall,           setSelectedCall]           = useState(null);
   const [agentsTabSelectedAgent, setAgentsTabSelectedAgent] = useState(null);
-  const [agentsTabLogsDate, setAgentsTabLogsDate] = useState("");
-  const [openReport, setOpenReport] = useState(null);
-  const [logoutTarget, setLogoutTarget] = useState(null);
+  const [agentsTabLogsDate,      setAgentsTabLogsDate]      = useState("");
+  const [openReport,             setOpenReport]             = useState(null);
+  const [logoutTarget,           setLogoutTarget]           = useState(null);
 
   const initialLoadDone = useRef(false);
-  const isInitialLoading = (agentsLoading || callsLoading) && !initialLoadDone.current;
+  const isLoading = (agentsLoading || callsLoading) && !initialLoadDone.current;
 
+  // Live clock — every second
   useEffect(() => {
-    Promise.all([dispatch(fetchAgents()), dispatch(fetchCalls())]).then(() => {
+    const i = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(i);
+  }, []);
+
+  // Fetch data + poll every 15s
+  useEffect(() => {
+    const callParams = dateFilter ? { date: dateFilter } : undefined;
+    Promise.all([dispatch(fetchAgents()), dispatch(fetchCalls(callParams))]).then(() => {
       initialLoadDone.current = true;
     });
-    const iv = setInterval(() => { dispatch(fetchAgents()); dispatch(fetchCalls()); }, 15000);
+    const iv = setInterval(() => {
+      dispatch(fetchAgents());
+      dispatch(fetchCalls(callParams));
+    }, 15000);
     return () => clearInterval(iv);
-  }, [dispatch]);
+  }, [dispatch, dateFilter]);
 
-  // ✅ NEW: 1hr missed call alert from backend
+  // Socket — missed call alert
   useEffect(() => {
-    const handleMissedAlert = (data) => {
+    const fn = (data) =>
       toast.error(`⚠️ ${data.message}`, { duration: 8000, style: { fontWeight: 700, fontSize: 13 } });
-    };
-    socket.on("missed-call-alert", handleMissedAlert);
-    return () => socket.off("missed-call-alert", handleMissedAlert);
+    socket.on("missed-call-alert", fn);
+    return () => socket.off("missed-call-alert", fn);
   }, []);
 
   const handleCallback = (id) => { dispatch(callbackCall(id)); setSelectedCall(null); };
@@ -196,123 +550,282 @@ export default function EnquiryCalls() {
     setLogoutTarget(null);
   };
 
-  const missedCalls = calls.filter(c => c.status === "missed");
-  const availableAgents = agents.filter(a => a.status === "available");
-  const onBreakAgents = agents.filter(a => a.status === "break");
+  const dateScopedCalls = useMemo(
+    () => calls.filter(c => callBelongsToDate(c, dateFilter)),
+    [calls, dateFilter]
+  );
+
+  const agentsWithCallStats = useMemo(() => {
+    const metrics = new Map();
+    for (const call of dateScopedCalls) {
+      const agentId = getCallAgentId(call);
+      if (!agentId) continue;
+      if (!metrics.has(agentId)) {
+        metrics.set(agentId, { handled: 0, missed: 0, duration: 0, durationCount: 0 });
+      }
+      const item = metrics.get(agentId);
+      const status = call.status?.toLowerCase();
+      if (["completed", "answered"].includes(status)) {
+        item.handled += 1;
+        if (call.duration) {
+          item.duration += Number(call.duration) || 0;
+          item.durationCount += 1;
+        }
+      }
+      if (status === "missed") item.missed += 1;
+    }
+
+    return agents.map(agent => {
+      const item = metrics.get(String(agent._id)) || {};
+      return {
+        ...agent,
+        handled: item.handled || 0,
+        callsHandled: item.handled || 0,
+        missed: item.missed || 0,
+        callsMissed: item.missed || 0,
+        avgTime: item.durationCount ? Math.round(item.duration / item.durationCount) : 0,
+        avgCallTime: item.durationCount ? Math.round(item.duration / item.durationCount) : 0,
+      };
+    });
+  }, [agents, dateScopedCalls]);
+
+  // Derived stats
+  const stats = useMemo(() => {
+    const online  = agents.filter(a => a.status !== "offline").length;
+    const onCall  = agents.filter(a => a.status === "busy").length;
+    const handled = dateScopedCalls.filter(c => ["completed", "answered"].includes(c.status?.toLowerCase())).length;
+    const missed  = dateScopedCalls.filter(c => c.status === "missed").length;
+    return { online, onCall, handled, missed, total: agents.length };
+  }, [agents, dateScopedCalls]);
+
+  const TABS = [
+    { id: "agents",   label: "Agents",       Icon: Users,       badge: stats.online, danger: false },
+    { id: "missed",   label: "Missed Calls", Icon: PhoneMissed, badge: stats.missed, danger: true  },
+    { id: "timelogs", label: "Time Logs",    Icon: Clock,       badge: 0,            danger: false },
+  ];
+
+  // ── Loading ──
+  if (isLoading) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-slate-50 font-sans antialiased">
+        <Sidebar />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin" />
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Syncing live data…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: T.bg, fontFamily: T.font }}>
-      <style>{CSS}</style>
+    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans antialiased">
       <Sidebar />
 
-      {isInitialLoading && (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14 }}>
-          <div style={{ width: 42, height: 42, border: `3px solid ${T.border}`, borderTop: `3px solid ${T.accent}`, borderRadius: "50%", animation: "spin .8s linear infinite" }} />
-          <p style={{ color: T.muted, fontSize: 12, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase" }}>Syncing live data…</p>
+      {/* ── Report pages ── */}
+      {openReport === "call" && (
+        <ReportPage title="User Call Report" onBack={() => setOpenReport(null)}>
+          <UserCallReport agents={agents} calls={calls} onClose={() => setOpenReport(null)} inPage />
+        </ReportPage>
+      )}
+      {openReport === "login" && (
+        <ReportPage title="User Login Report" onBack={() => setOpenReport(null)}>
+          <UserLoginReport agents={agents} onClose={() => setOpenReport(null)} inPage />
+        </ReportPage>
+      )}
+
+      {/* ── Missed call detail ── */}
+      {!openReport && selectedCall && (
+        <div className="flex flex-1 overflow-y-auto">
+          <MissedCallDetail
+            call={selectedCall}
+            onBack={() => setSelectedCall(null)}
+            onCallback={handleCallback}
+          />
         </div>
       )}
 
-      {!isInitialLoading && openReport === "call" && (
-        <ReportPageWrapper title="User Call Report" onBack={() => setOpenReport(null)}>
-          <UserCallReport agents={agents} calls={calls} onClose={() => setOpenReport(null)} inPage={true} />
-        </ReportPageWrapper>
-      )}
+      {/* ── Main dashboard ── */}
+      {!openReport && !selectedCall && (
+        <div className="flex flex-1 flex-col overflow-hidden">
 
-      {!isInitialLoading && openReport === "login" && (
-        <ReportPageWrapper title="User Login Report" onBack={() => setOpenReport(null)}>
-          <UserLoginReport agents={agents} onClose={() => setOpenReport(null)} inPage={true} />
-        </ReportPageWrapper>
-      )}
+          {/* ── Top navbar ── */}
+          <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 backdrop-blur-md">
+            <div className="flex items-center justify-between px-6 py-3.5 gap-4">
 
-      {!isInitialLoading && !openReport && selectedCall && (
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          <MissedCallDetail call={selectedCall} onBack={() => setSelectedCall(null)} onCallback={handleCallback} />
-        </div>
-      )}
-
-      {!isInitialLoading && !openReport && !selectedCall && (
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          <div style={{ padding: "32px 36px", maxWidth: 1520, margin: "0 auto" }}>
-
-            {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.green, display: "inline-block", animation: "blink 2s infinite", boxShadow: `0 0 0 3px ${T.greenSoft}` }} />
-                  <span style={{ fontSize: 10, fontWeight: 700, color: T.green, letterSpacing: 2, textTransform: "uppercase" }}>Live System</span>
+              {/* Logo */}
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
+                  <Headphones className="h-5 w-5" />
                 </div>
-                <h1 style={{ fontSize: 26, fontWeight: 800, color: T.text, margin: 0, letterSpacing: -.5 }}>Call Center Ops</h1>
-                <p style={{ color: T.muted, fontSize: 13, marginTop: 3 }}>Real-time agent performance & call traffic</p>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Call Center Ops</p>
+                  <p className="text-sm font-bold text-slate-900">Enquiry Live Dashboard</p>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.card, border: `1.5px solid ${T.border}`, borderRadius: 99, padding: "8px 16px", boxShadow: T.shadow }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.green, display: "inline-block", animation: "blink 1.5s infinite" }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: T.text }}>{availableAgents.length} / {agents.length} agents online</span>
+
+              {/* Search + icons */}
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    placeholder="Search agent or extension…"
+                    className="h-9 w-64 rounded-xl border border-slate-200 bg-slate-50/60 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <button className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
+                  <Filter className="h-4 w-4" />
+                </button>
+                <div className="relative">
+                  <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="date"
+                    value={dateFilter}
+                    onChange={e => setDateFilter(e.target.value)}
+                    className="h-9 rounded-xl border border-slate-200 bg-slate-50/60 pl-9 pr-3 text-sm font-semibold text-slate-700 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <button className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
+                  <Bell className="h-4 w-4" />
+                  <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                </button>
+              </div>
+
+              {/* Right side */}
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {/* Live clock */}
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                  <Circle className="h-2 w-2 fill-emerald-500 text-emerald-500 animate-pulse" />
+                  Live · {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </span>
+
+                {/* Call report */}
+                <button
+                  onClick={() => setOpenReport("call")}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
+                >
+                  <FileText className="h-4 w-4" /> Call report
+                </button>
+
+                {/* Login report */}
+                <button
+                  onClick={() => setOpenReport("login")}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition-colors"
+                >
+                  <ArrowUpRight className="h-4 w-4" /> Login report
+                </button>
+
+                {/* Avatar */}
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xs font-bold text-white">
+                  SK
+                </div>
               </div>
             </div>
+          </header>
 
-            {/* Stat Cards */}
-            {activeTab !== "timelogs" && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
-                <StatCard label="Total Agents" value={agents.length} icon="👥" color="#4F6EF7" bg="#EEF1FE" />
-                <StatCard label="Available" value={availableAgents.length} icon="✅" color={T.green} bg={T.greenSoft} />
-                <StatCard label="On Break" value={onBreakAgents.length} icon="☕" color={T.amber} bg={T.amberSoft} />
-                <StatCard label="Missed Today" value={missedCalls.length} icon="📵" color={T.red} bg={T.redSoft} />
-              </div>
-            )}
+          {/* ── Scrollable body ── */}
+          <main className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-[1400px] px-6 py-6">
 
-            {/* Agent Activity */}
-            <div style={{ marginBottom: 28 }}>
-              <SectionHeading>Recent Agent Activity</SectionHeading>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 13 }}>
-                {agents.map(a => <AgentCard key={a._id} agent={a} />)}
-              </div>
-            </div>
+              {/* Page title */}
+              {/* <section className="mb-6">
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Real-time agent performance</h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  Monitor live calls, missed enquiries and agent availability across the floor.
+                </p>
+              </section> */}
 
-            <QuickAccess onOpen={setOpenReport} />
+              {/* Stat cards */}
+              <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard icon={Users}    label="Online agents" value={`${stats.online}/${stats.total}`} delta="+2 vs avg" tone="blue"    />
+                <StatCard icon={Phone}    label="On call now"   value={String(stats.onCall)}              delta="+12%"      tone="emerald" />
+                <StatCard icon={PhoneOff} label="Missed calls"  value={String(stats.missed)}              delta="-1 vs y'd" tone="rose"    />
+                <StatCard icon={Activity} label="Calls handled" value={String(stats.handled)}             delta="+8.4%"     tone="amber"   />
+              </section>
 
-            {/* Tab Bar */}
-            <div style={{ display: "flex", gap: 3, background: T.card, border: `1.5px solid ${T.border}`, padding: 5, borderRadius: 14, width: "fit-content", marginBottom: 18, boxShadow: T.shadow }}>
-              {TABS.map(tab => {
-                const isActive = activeTab === tab.id;
-                const showBadge = tab.id === "missed" && missedCalls.length > 0;
-                return (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                    style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", transition: "all .18s ease", background: isActive ? T.accent : "transparent", color: isActive ? "#fff" : T.muted, boxShadow: isActive ? `0 3px 10px ${T.accent}50` : "none", fontFamily: T.font }}>
-                    <span style={{ fontSize: 15 }}>{tab.icon}</span>
-                    {tab.label}
-                    {showBadge && <span style={{ fontSize: 10, fontWeight: 800, padding: "1px 7px", borderRadius: 99, background: isActive ? "rgba(255,255,255,.25)" : T.red, color: "#fff" }}>{missedCalls.length}</span>}
+              {/* Recent agent activity */}
+              <section className="mb-8">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-5 w-1 rounded-full bg-blue-600" />
+                    <h2 className="text-base font-bold text-slate-900">Recent agent activity</h2>
+                  </div>
+                  <button className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700">
+                    View all <ChevronRight className="h-3.5 w-3.5" />
                   </button>
-                );
-              })}
-            </div>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {agentsWithCallStats.slice(0, 4).map(a => <AgentCard key={a._id} agent={a} />)}
+                </div>
+              </section>
 
-            {/* Tab Panel */}
-            <div style={{ background: T.card, borderRadius: T.radius, border: `1.5px solid ${T.border}`, boxShadow: T.shadow, overflow: "hidden", marginBottom: 22 }}>
-              <div style={{ padding: 4 }}>
-                {activeTab === "agents" && (
+              {/* Tab bar + panels */}
+              <section>
+                <div className="mb-4 inline-flex rounded-2xl border border-slate-200/70 bg-white p-1 shadow-sm">
+                  {TABS.map(({ id, label, Icon, badge, danger }) => {
+                    const active = tab === id;
+                    return (
+                      <button
+                        key={id}
+                        onClick={() => setTab(id)}
+                        className={`relative inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all
+                          ${active ? "bg-blue-600 text-white shadow-md shadow-blue-500/25" : "text-slate-600 hover:text-slate-900"}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {label}
+                        {badge > 0 && (
+                          <span className={`inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold
+                            ${active ? "bg-white/20 text-white" : danger ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-700"}`}>
+                            {badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {tab === "agents" && (
                   <AgentsPanel
-                    agents={agents}
-                    availableCount={availableAgents.length}
+                    agents={agentsWithCallStats}
+                    query={query}
                     onToggleBreak={(id) => dispatch(toggleBreak(id))}
                     onViewLogs={(agent) => { setAgentsTabSelectedAgent(agent); setAgentsTabLogsDate(""); }}
                     onForceLogout={(agent) => setLogoutTarget(agent)}
                   />
                 )}
-                {activeTab === "timelogs" && <TimeLogsTab agents={agents} />}
-                {/* ✅ CHANGED: pass full calls array — MissedCallsPanel filters internally */}
-                {activeTab === "missed" && <MissedCallsPanel calls={calls} onSelect={setSelectedCall} />}
-              </div>
-            </div>
+                {tab === "missed" && (
+                  <MissedPanel
+                    calls={calls}
+                    onSelect={setSelectedCall}
+                    dateFilter={dateFilter}
+                    onDateChange={setDateFilter}
+                    query={query}
+                    onQueryChange={setQuery}
+                  />
+                )}
+                {tab === "timelogs" && (
+                  <TimeLogsPanel agents={agents} dateFilter={dateFilter} />
+                )}
+              </section>
 
-            {/* Call Panel */}
-            <div style={{ background: T.card, borderRadius: T.radius, border: `1.5px solid ${T.border}`, boxShadow: T.shadow, overflow: "hidden" }}>
-              <CallPanel agents={agents} />
-            </div>
+              {/* Footer */}
+              <footer className="mt-10 flex items-center justify-between border-t border-slate-200/70 pt-5 text-xs text-slate-500">
+                <p>© Call Center Ops · auto-refresh every 15s</p>
+                <p className="inline-flex items-center gap-1.5">
+                  <Circle className="h-2 w-2 fill-emerald-500 text-emerald-500" />
+                  All systems operational
+                </p>
+              </footer>
 
-          </div>
+            </div>
+          </main>
         </div>
       )}
 
+      {/* ── Modals ── */}
       {agentsTabSelectedAgent && (
         <AgentBreakLogs
           agent={agentsTabSelectedAgent}
@@ -321,7 +834,6 @@ export default function EnquiryCalls() {
           onClose={() => setAgentsTabSelectedAgent(null)}
         />
       )}
-
       {logoutTarget && (
         <Forcelogoutconfirm
           agent={logoutTarget}

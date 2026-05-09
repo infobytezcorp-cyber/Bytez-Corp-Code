@@ -42,6 +42,11 @@ const visitDetailsSchema = new mongoose.Schema({
   // 🔹 Visitor Fields
   purpose: String,
   visitPerson: String,
+  visitorCategory: {
+    type: String,
+    enum: ["normal", "eldercare", "homecare"],
+    default: "normal",
+  },
 
   // 🔹 Job Fields
   jobRole: String,

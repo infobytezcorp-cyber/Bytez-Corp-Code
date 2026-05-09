@@ -28,6 +28,8 @@ const modules = [
       { icon: "🚪", title: "Visitor Management", desc: "Kiosk check-in/out. Visitor log. Host notification.", tab: "visitors" },
       { icon: "🪪", title: "Gate Pass", desc: "Auto-printed/digital pass with QR code for exit scan.", tab: "gatepass" },
       { icon: "📨", title: "Pre-Invitation", desc: "Send invite link via WhatsApp. Visitor pre-fills details.", tab: "preinvitation" },
+      { icon: "🩺", title: "Nursing Records", desc: "Vitals, medical, food and doctor checkups.", tab: "nursing-view" },
+      { icon: "🔒", title: "Watchman Logs", desc: "Vehicle, material, staff and inmate movement logs.", tab: "watchman-view" },
     ],
   },
   {
@@ -77,11 +79,11 @@ const modules = [
   },
 ];
 
-export default function ModulesPage({ setShowModules }) {
+export default function ModulesPage({ setShowModules, setActiveTab }) {
   return (
     <div className="p-4 space-y-2">
       <button
-        onClick={() => setShowModules(false)}
+        onClick={() => setShowModules?.(false)}
         className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -103,7 +105,7 @@ export default function ModulesPage({ setShowModules }) {
             {group.items.map((mod) => (
               <button
                 key={mod.tab}
-                onClick={() => setActiveTab(mod.tab)}
+                onClick={() => setActiveTab?.(mod.tab)}
                 className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col items-center text-center hover:border-gray-300 hover:bg-gray-50 transition-all cursor-pointer shadow-gray-400"
               >
                 <span className="text-3xl mb-2">{mod.icon}</span>

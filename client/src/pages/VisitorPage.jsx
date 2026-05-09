@@ -1,129 +1,133 @@
 import { useState } from "react";
 import Sidebar from "../components/dashboards/visitors/Sidebar";
 import Visitors from "../components/dashboards/visitors/Visitors";
+import NursingRecordsView from "../components/dashboards/visitors/NursingRecordsView";
+import WatchmanRecordsView from "../components/dashboards/visitors/WatchmanRecordsView";
 import AddUser from "../pages/Register";
 import JobEnquiry from "../components/dashboards/jonenquiry/JobEnquiry";
 import NormalEnquiry from "../components/dashboards/jonenquiry/NormalEnquiry";
 import ElderCare from "../components/dashboards/jonenquiry/ElderCare";
 import HomeCare from "../components/dashboards/jonenquiry/HomeCare";
-import ModulePage from "./ModulesPage";
+import AdminRecordsView from "../components/dashboards/AdminRecordsView";
 import { eldercare, enquiry, homecare, job, visitors_logs } from "../utils/icons";
+import { UserPlus, ClipboardList, HeartPulse, Shield } from "lucide-react";
 
-const TABS = [
-  {
-    key: "visitors",
-    label: "Visitor Log",
-    icon: visitors_logs,
-  },
-  {
-    key: "jobs",
-    label: "Job Enquiries",
-    icon: job,
-  },
-  {
-    key: "clients",
-    label: "Normal Enquiry",
-    icon: enquiry,
-  },
-  {
-    key: "eldercare",
-    label: "Elder Care",
-    icon: eldercare
-  },
-  {
-    key: "homecare",
-    label: "Home Care",
-    icon: homecare
-  }
+// ─── Tab definitions ──────────────────────────────────────────────────────────
 
+const BASE_TABS = [
+  { key: "visitors",    label: "Visitor Log",      icon: visitors_logs, colorClass: "text-blue-600   border-blue-600" },
+  { key: "jobs",        label: "Job Enquiries",    icon: job,           colorClass: "text-emerald-600 border-emerald-600" },
+  { key: "clients",     label: "Normal Enquiry",   icon: enquiry,       colorClass: "text-orange-500  border-orange-500" },
+  { key: "eldercare",   label: "Elder Care",       icon: eldercare,     colorClass: "text-yellow-600  border-yellow-600" },
+  { key: "homecare",    label: "Home Care",        icon: homecare,      colorClass: "text-teal-600    border-teal-600" },
 ];
 
-const TAB_ACTIVE_STYLES = {
-  visitors: "border-blue-600 text-blue-600",
-  jobs: "border-green-600 text-green-600",
-  clients: "border-orange-500 text-orange-500",
-  eldercare: "border-yellow-500 text-yellow-500",
-  homecare: "border-black-500 text-black-500"
-};
+const ADMIN_TABS = [
+  {
+    key: "nursingview", label: "Nursing Records",
+    icon: <HeartPulse className="w-3.5 h-3.5" />,
+    colorClass: "text-rose-500 border-rose-500",
+    pill: "Nursing",
+    pillColor: "bg-rose-50 text-rose-600",
+  },
+  {
+    key: "watchmanview", label: "Watchman Logs",
+    icon: <Shield className="w-3.5 h-3.5" />,
+    colorClass: "text-amber-500 border-amber-500",
+    pill: "Watchman",
+    pillColor: "bg-amber-50 text-amber-700",
+  },
+  {
+    key: "adminrecordsview", label: "Admin Records",
+    icon: <ClipboardList className="w-3.5 h-3.5" />,
+    colorClass: "text-indigo-600 border-indigo-600",
+    pill: "Admin",
+    pillColor: "bg-indigo-50 text-indigo-700",
+  },
+];
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function VisitorPage() {
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState("visitors");
+  const userRole = localStorage.getItem("role");
+  const isPrivileged = userRole === "admin" || userRole === "manager";
+
+  const allTabs = isPrivileged ? [...BASE_TABS, ...ADMIN_TABS] : BASE_TABS;
+  const activeTabMeta = allTabs.find((t) => t.key === activeTab);
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-slate-100 overflow-hidden">
       <Sidebar />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
         {/* ── Top Bar ── */}
-        <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
-
+        <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between shrink-0 z-10">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">
-              Visitor Dashboard
-            </h1>
-            <p className="text-xs text-gray-400">
-              Manage visitors, job & enquiries
-            </p>
+            <h1 className="text-sm font-semibold text-slate-900 leading-tight">Visitor Dashboard</h1>
+            <p className="text-xs text-slate-400 mt-0.5">Manage visitors, enquiries &amp; institutional records</p>
           </div>
-
-          <div className="flex gap-2">
-
-            {/* Create User */}
-            <button
-              onClick={() => setShowModal(true)}
-              className="bg-gray-900 text-white text-xs px-4 py-2 rounded-lg"
-            >
-              + Create User
-            </button>
-
-          </div>
-        </div>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-sm hover:bg-slate-700 active:scale-95 transition-all"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            Create User
+          </button>
+        </header>
 
         {/* ── Tab Bar ── */}
-        <div className="bg-white border-b border-gray-100 px-6 flex gap-0 shrink-0">
-          {activeTab !== "modules" && (
-            <div className="bg-white border-b border-gray-100 px-6 flex gap-0 shrink-0">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-4 py-3 text-xs font-medium border-b-2 transition-colors cursor-pointer ${activeTab === tab.key
-                    ? TAB_ACTIVE_STYLES[tab.key]
-                    : "border-transparent text-gray-400 hover:text-gray-600"
-                    }`}
-                >
-                  {tab.icon}
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <nav className="bg-white border-b border-slate-200 px-6 flex items-end gap-0 shrink-0 overflow-x-auto">
+          {allTabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`relative flex items-center gap-2 px-4 py-3.5 text-xs font-medium border-b-2 transition-all whitespace-nowrap shrink-0 ${
+                  isActive
+                    ? `${tab.colorClass} bg-transparent`
+                    : "border-transparent text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {typeof tab.icon === "string"
+                  ? <span className="text-[13px]">{tab.icon}</span>
+                  : tab.icon
+                }
+                {tab.label}
+                {tab.pill && (
+                  <span className={`hidden sm:inline rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${tab.pillColor}`}>
+                    {tab.pill}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
 
-        {/* ── Content ── */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === "visitors" && <Visitors />}
-          {activeTab === "jobs" && <JobEnquiry />}
-          {activeTab === "clients" && <NormalEnquiry />}
-          {activeTab === "eldercare" && <ElderCare />}
-          {activeTab === "homecare" && <HomeCare />}
-          {activeTab === "modules" && (
-            <ModulePage setActiveTab={setActiveTab} />
-          )}
-
-        </div>
+        {/* ── Content Area ── */}
+        <main className="flex-1 overflow-y-auto">
+          {activeTab === "visitors"         && <Visitors />}
+          {activeTab === "jobs"             && <JobEnquiry />}
+          {activeTab === "clients"          && <NormalEnquiry />}
+          {activeTab === "nursingview"      && <NursingRecordsView />}
+          {activeTab === "watchmanview"     && <WatchmanRecordsView />}
+          {activeTab === "adminrecordsview" && <AdminRecordsView />}
+          {activeTab === "eldercare"        && <ElderCare />}
+          {activeTab === "homecare"         && <HomeCare />}
+        </main>
       </div>
 
-      {/* ── Modal ── */}
+      {/* ── Create User Modal ── */}
       {showModal && (
         <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-white rounded-2xl w-[700px] overflow-hidden shadow-xl"
+            className="bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-200 w-full max-w-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <AddUser onClose={() => setShowModal(false)} />

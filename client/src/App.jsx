@@ -19,6 +19,8 @@ import EnquiryCalls from "./pages/EnquiryCalls";
 import TelecallerPage from "./pages/TelecallerPage";
 import socket from "./services/socket";
 import { useEffect } from "react";
+import NursingPage from "./pages/NursingPage";
+import WatchmanPage from "./pages/WatchmanPage";
 
 
 
@@ -41,10 +43,18 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/visitorpage" element={<VisitorPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute role="admin">
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/visitor" element={<VisitorRegistration />} />
           <Route path="/success" element={<SuccessPage />} />
           <Route path="/jobform" element={<JobRegistorForm />} />
+          <Route path="/enquiry-calls" element={<EnquiryCalls />} />
           <Route path="/EnquiryCalls" element={<EnquiryCalls />} />
 
           <Route
@@ -84,6 +94,22 @@ function App() {
             element={
               <ProtectedRoute role="telecaller">
                 <TelecallerPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nursing"
+            element={
+              <ProtectedRoute role={["admin", "nursing"]}>
+                <NursingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/watchman"
+            element={
+              <ProtectedRoute role={["admin", "watchman"]}>
+                <WatchmanPage />
               </ProtectedRoute>
             }
           />

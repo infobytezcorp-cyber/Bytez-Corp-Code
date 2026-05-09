@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import {
   User,
@@ -15,15 +15,17 @@ import {
   Hash,
   Droplets,
 } from 'lucide-react';
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const API = import.meta.env.VITE_API_URL;
 axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
 
 
 const visitTypes = [
-  { value: 'visitor', label: 'Visitor', icon: Users, color: 'bg-sky-50 border-sky-200 text-sky-700', active: 'bg-sky-500 border-sky-500 text-white' },
+  { value: 'normal', label: 'Normal Visitor', icon: Users, color: 'bg-sky-50 border-sky-200 text-sky-700', active: 'bg-sky-500 border-sky-500 text-white' },
   { value: 'job', label: 'Job Enquiry', icon: Briefcase, color: 'bg-emerald-50 border-emerald-200 text-emerald-700', active: 'bg-emerald-500 border-emerald-500 text-white' },
+  { value: 'eldercare', label: 'Elder Care', icon: Droplets, color: 'bg-amber-50 border-amber-200 text-amber-700', active: 'bg-amber-500 border-amber-500 text-white' },
+  { value: 'homecare', label: 'Home Care', icon: MapPin, color: 'bg-purple-50 border-purple-200 text-purple-700', active: 'bg-purple-500 border-purple-500 text-white' },
 ];
 
 const PURPOSES = [
@@ -57,6 +59,7 @@ const JOB_ROLES = [
 
 
 export default function VisitorRegistrationForm() {
+  const location = useLocation();
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -70,11 +73,14 @@ export default function VisitorRegistrationForm() {
     jobRoleCustom: "",
     experience: '',
     address: '',
+    visitPerson: '',
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-    const navigate = useNavigate();
+  const [checkInTime, setCheckInTime] = useState('');
+  const [visitorId, setVisitorId] = useState(localStorage.getItem('visitorId') || '');
+  const navigate = useNavigate();
 
   // const handleChange = (e) => {
   //   const { name, value } = e.target;
@@ -119,6 +125,23 @@ export default function VisitorRegistrationForm() {
       setErrors(prev => ({ ...prev, visitType: '' }));
     }
   };
+
+  useEffect(() => {
+    if (location.state?.visitorId) {
+      const id = location.state.visitorId;
+      setVisitorId(id);
+      localStorage.setItem('visitorId', id);
+      setForm(prev => ({
+        ...prev,
+        name: location.state.name || prev.name,
+        phone: location.state.phone || prev.phone,
+        purpose: location.state.purpose || prev.purpose,
+      }));
+      if (location.state.checkInTime) {
+        setCheckInTime(location.state.checkInTime);
+      }
+    }
+  }, [location.state]);
 
   // const validate = () => {
   //   const newErrors = {};
@@ -206,7 +229,8 @@ export default function VisitorRegistrationForm() {
 
       const payload = {
         visitorId,
-        visitType: form.visitType,
+        visitType: form.visitType === 'job' ? 'job' : 'visitor',
+        visitorCategory: form.visitType === 'job' ? undefined : form.visitType || 'normal',
         name: form.name,
         phone: form.phone,
         email: form.email,
@@ -237,8 +261,12 @@ export default function VisitorRegistrationForm() {
 
       setSubmitted(true);
 
-      // redirrect 
-      navigate("/visitor");
+      navigate("/success", {
+        state: {
+          name: form.name,
+          entryTime: checkInTime,
+        },
+      });
 
     } catch (err) {
       console.error("Error:", err.response?.data || err.message);
@@ -257,9 +285,12 @@ export default function VisitorRegistrationForm() {
       bloodGroup: '',
       visitType: '',
       purpose: '',
+      purposeCustom: '',
       jobRole: '',
+      jobRoleCustom: '',
       experience: '',
       address: '',
+      visitPerson: '',
     });
     setErrors({});
     setSubmitted(false);
@@ -270,7 +301,7 @@ export default function VisitorRegistrationForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden flex">
 
         <SidePanel visitType={form.visitType} />
@@ -279,10 +310,28 @@ export default function VisitorRegistrationForm() {
           <div className="mb-8">
             <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-1">Welcome</p>
             <h1 className="text-3xl font-bold text-slate-800">Visitor Registration</h1>
-            <p className="text-slate-500 mt-1">Fill in the details below to complete your check-in</p>
+            <p className="text-slate-500 mt-1">Fill in the details below to complete your visitor service selection.</p>
+            {checkInTime && (
+              <div className="mt-4 rounded-2xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600">
+                Checked in at: <span className="font-semibold text-slate-900">{new Date(checkInTime).toLocaleString()}</span>
+              </div>
+            )}
           </div>
 
-          <form onSubmit={handleSubmit} noValidate className="space-y-6">
+          {!visitorId ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-900 space-y-3">
+              <p className="font-semibold">Visitor check-in not found.</p>
+              <p>Please complete the QR + OTP check-in flow first so we can attach service data to the correct visitor record.</p>
+              <button
+                type="button"
+                onClick={() => navigate('/visitor')}
+                className="inline-flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-xl"
+              >
+                Back to check-in
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} noValidate className="space-y-6">
 
             {/* Personal Information */}
             <Section title="Personal Information">
@@ -362,7 +411,7 @@ export default function VisitorRegistrationForm() {
                 <label className="block text-sm font-medium text-slate-700 mb-3">
                   Visit Type <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {visitTypes.map(({ value, label, icon: Icon, color, active }) => (
                     <button
                       key={value}
@@ -381,7 +430,7 @@ export default function VisitorRegistrationForm() {
               </div>
 
               {/* Purpose — only for Visitor type */}
-              {form.visitType === 'visitor' && (
+              {form.visitType && form.visitType !== 'job' && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     Purpose <span className="text-red-500">*</span>
@@ -422,7 +471,16 @@ export default function VisitorRegistrationForm() {
                       placeholder="Enter purpose"
                     />
                   )}
-                </div>  
+
+                  <InputField
+                    icon={Users}
+                    label="Visit Person"
+                    name="visitPerson"
+                    value={form.visitPerson}
+                    onChange={handleChange}
+                    placeholder="Person or department to meet"
+                  />
+                </div>
               )}
             </Section>
 
@@ -568,6 +626,7 @@ export default function VisitorRegistrationForm() {
               )}
             </button>
           </form>
+          )}
         </div>
       </div>
     </div>
@@ -629,11 +688,23 @@ function SidePanel({ visitType }) {
       title: 'Job Enquiry',
       desc: 'Explore exciting career opportunities with our growing team.',
     },
-    visitor: {
+    normal: {
       bg: 'from-sky-600 to-blue-700',
       icon: Users,
-      title: 'Visitor',
-      desc: 'Welcome! We are happy to have you here with us today.',
+      title: 'Normal Visitor',
+      desc: 'Complete visitor details for general inquiries or visits.',
+    },
+    eldercare: {
+      bg: 'from-amber-600 to-orange-700',
+      icon: Droplets,
+      title: 'Elder Care',
+      desc: 'Add details for elder care services and related follow-up.',
+    },
+    homecare: {
+      bg: 'from-purple-600 to-fuchsia-700',
+      icon: MapPin,
+      title: 'Home Care',
+      desc: 'Complete home care service details for the visitor.',
     },
     default: {
       bg: 'from-blue-700 to-slate-800',
@@ -647,7 +718,7 @@ function SidePanel({ visitType }) {
   const PanelIcon = active.icon;
 
   return (
-    <div className={`hidden lg:flex flex-col justify-between w-80 bg-gradient-to-br ${active.bg} p-10 transition-all duration-500`}>
+    <div className={`hidden lg:flex flex-col justify-between w-80 bg-linear-to-br ${active.bg} p-10 transition-all duration-500`}>
       <div>
         <div className="bg-white/20 w-12 h-12 rounded-2xl flex items-center justify-center mb-8">
           <Building2 size={24} className="text-white" />
@@ -685,7 +756,7 @@ function SuccessScreen({ form, onReset }) {
     visitTypes.find(v => v.value === form.visitType)?.label || form.visitType;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl p-10 max-w-md w-full text-center">
 
         <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">

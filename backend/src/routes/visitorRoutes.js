@@ -1,5 +1,5 @@
 import express from "express";
-import { checkoutVisitor, getVisitors, registerVisitor, updateVisitor } from "../controllers/visitorController.js";
+import { checkoutVisitor, getVisitorById, getVisitors, registerVisitor, updateVisitor, searchVisitor } from "../controllers/visitorController.js";
 
 
 const router = express.Router();
@@ -9,6 +9,12 @@ router.post("/", registerVisitor);
 
 // 🔹 GET ALL VISITORS
 router.get("/", getVisitors);
+
+// 🔹 CRM SEARCH (by name or phone)
+router.get("/search", searchVisitor);
+
+// 🔹 GET VISITOR BY ID
+router.get("/:id", getVisitorById);
 
 // 🔹 CHECKOUT VISITOR
 router.put("/:id/checkout", checkoutVisitor);

@@ -114,6 +114,8 @@ export default function Register({ onClose }) {
               <option value="manager">Manager</option>
               <option value="admin">Admin</option>
               <option value="telecaller">Telecaller</option>
+              <option value="nursing">Nursing</option>
+              <option value="watchman">Watchman</option>
             </select>
           </div>
         </div>

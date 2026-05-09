@@ -4,9 +4,15 @@ import API from "../services/api";
 // ───────── FETCH ALL CALLS ─────────
 export const fetchCalls = createAsyncThunk(
   "calls/fetchCalls",
-  async (_, { rejectWithValue }) => {
+  async ({ date, status, agentId } = {}, { rejectWithValue }) => {
     try {
-      const res = await API.get("/calls");
+      const params = new URLSearchParams();
+      if (date) params.append("date", date);
+      if (status) params.append("status", status);
+      if (agentId) params.append("agentId", agentId);
+
+      const qs = params.toString();
+      const res = await API.get(qs ? `/calls?${qs}` : "/calls");
       return res.data.data;
     } catch (err) {
       return rejectWithValue(

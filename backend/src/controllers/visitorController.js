@@ -63,8 +63,77 @@ export const getVisitors = async (req, res) => {
     }
 };
 
+// 🔹 CRM VISITOR SEARCH (by name or phone)
+export const searchVisitor = async (req, res) => {
+    try {
+        const { query } = req.query;
+
+        if (!query || query.trim() === "") {
+            return res.status(400).json({ message: "Search query is required" });
+        }
+
+        const searchQuery = query.trim();
+
+        // Search by name (case-insensitive) or phone number
+        const visitor = await Visitor.findOne({
+            $or: [
+                { name: { $regex: searchQuery, $options: "i" } },
+                { phone: searchQuery }
+            ]
+        });
+
+        if (!visitor) {
+            return res.status(404).json({ message: "Visitor not found" });
+        }
+
+        // Fetch all visits for this visitor (by name and phone)
+        const visits = await Visitor.find({
+            $or: [
+                { name: visitor.name },
+                { phone: visitor.phone }
+            ]
+        }).sort({ checkInTime: -1 });
+
+        res.json({
+            visitor: {
+                _id: visitor._id,
+                name: visitor.name,
+                phone: visitor.phone,
+                address: visitor.address || "",
+                email: visitor.email || "",
+                createdAt: visitor.createdAt
+            },
+            visits: visits.map(v => ({
+                _id: v._id,
+                checkInTime: v.checkInTime,
+                checkOutTime: v.checkOutTime,
+                status: v.status,
+                purpose: v.purpose,
+                createdAt: v.createdAt
+            }))
+        });
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
 
 // 🔹 CHECKOUT VISITOR
+export const getVisitorById = async (req, res) => {
+  try {
+    const visitor = await Visitor.findById(req.params.id);
+
+    if (!visitor) {
+      return res.status(404).json({ message: "Visitor not found" });
+    }
+
+    res.json(visitor);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 export const checkoutVisitor = async (req, res) => {
     try {
         const visitor = await Visitor.findById(req.params.id);

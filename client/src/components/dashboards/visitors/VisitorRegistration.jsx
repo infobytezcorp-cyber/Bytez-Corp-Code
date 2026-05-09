@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { showToast } from "../../../utils/toast";
-import { User, Phone, FileText, ChevronRight, Building2, CheckCircle, KeyRound } from "lucide-react";
+import { User, Phone, FileText, ChevronRight, Building2, CheckCircle, KeyRound, QrCode } from "lucide-react";
 
 const PURPOSES = [
   "Visiting",
@@ -24,7 +24,7 @@ export default function VisitorRegistration() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [otp, setOtp] = useState("");
 
   const validate = () => {
@@ -49,6 +49,10 @@ export default function VisitorRegistration() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const startScan = () => {
+    setStep(1);
   };
 
   // const verifyAndSubmit = async () => {
@@ -88,17 +92,20 @@ export default function VisitorRegistration() {
         phone: form.phone,
         otp,
         name: form.name,
+        purpose: form.purpose,
       });
 
       console.log("Visitor created:", res.data);
 
-      // ✅ store ID
       localStorage.setItem("visitorId", res.data._id);
 
-      navigate("/success", {
+      navigate("/jobform", {
         state: {
+          visitorId: res.data._id,
           name: form.name,
-          entryTime: res.data.visitor.checkInTime,
+          phone: form.phone,
+          checkInTime: res.data.visitor.checkInTime,
+          purpose: form.purpose,
         },
       });
 
@@ -110,11 +117,11 @@ export default function VisitorRegistration() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden flex">
 
         {/* Side Panel */}
-        <div className="hidden lg:flex flex-col justify-between w-80 bg-gradient-to-br from-blue-700 to-slate-800 p-10">
+        <div className="hidden lg:flex flex-col justify-between w-80 bg-linear-to-br from-blue-700 to-slate-800 p-10">
           <div>
             <div className="bg-white/20 w-12 h-12 rounded-2xl flex items-center justify-center mb-8">
               <Building2 size={24} className="text-white" />
@@ -122,10 +129,12 @@ export default function VisitorRegistration() {
             <div className="bg-white/10 rounded-2xl p-5 backdrop-blur-sm">
               <User size={28} className="text-white mb-3" />
               <h2 className="text-white font-bold text-xl mb-2">
-                {step === 1 ? "Visitor Check-In" : "OTP Verification"}
+                {step === 0 ? "Scan QR Code" : step === 1 ? "Visitor Check-In" : "OTP Verification"}
               </h2>
               <p className="text-white/80 text-sm leading-relaxed">
-                {step === 1
+                {step === 0
+                  ? "Scan the visitor QR code to begin check-in."
+                  : step === 1
                   ? "Register your visit quickly and securely with our digital check-in system."
                   : "Enter the 6-digit OTP sent to your registered mobile number."}
               </p>
@@ -155,11 +164,36 @@ export default function VisitorRegistration() {
             <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-1">Welcome</p>
             <h1 className="text-3xl font-bold text-slate-800">Visitor Registration</h1>
             <p className="text-slate-500 mt-1">
-              {step === 1 ? "Fill in the details below to complete your check-in" : "Enter the OTP sent to your phone"}
+              {step === 0
+                ? "Begin the flow by scanning the visitor QR code."
+                : step === 1
+                ? "Fill in the details below to complete your check-in."
+                : "Enter the OTP sent to your phone."}
             </p>
           </div>
 
           <div className="space-y-6">
+
+            {/* STEP 0 — QR SCAN */}
+            {step === 0 && (
+              <div className="rounded-2xl p-8 space-y-6 bg-slate-50 border border-slate-100 text-center">
+                <div className="flex items-center justify-center rounded-3xl bg-blue-100 h-24 w-24 mx-auto">
+                  <QrCode size={40} className="text-blue-700" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800">Scan visitor QR code</h3>
+                  <p className="text-sm text-slate-500 mt-2">
+                    A QR scan begins the visitor check-in flow. If you do not have a QR reader, you can proceed manually.
+                  </p>
+                </div>
+                <button
+                  onClick={startScan}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg shadow-blue-200"
+                >
+                  Start scan
+                </button>
+              </div>
+            )}
 
             {/* STEP 1 — FORM */}
             {step === 1 && (
@@ -243,24 +277,25 @@ export default function VisitorRegistration() {
               </div>
             )}
 
-            {/* Submit Button */}
-            <button
-              onClick={step === 1 ? sendOtp : verifyAndSubmit}
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 active:translate-y-0 text-base"
-            >
-              {loading ? (
-                <>
-                  <span className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  {step === 1 ? "Send OTP" : "Verify & Register"}
-                  <ChevronRight size={18} />
-                </>
-              )}
-            </button>
+            {step > 0 && (
+              <button
+                onClick={step === 1 ? sendOtp : verifyAndSubmit}
+                disabled={loading}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 active:translate-y-0 text-base"
+              >
+                {loading ? (
+                  <>
+                    <span className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    {step === 1 ? "Send OTP" : "Verify & Continue"}
+                    <ChevronRight size={18} />
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
