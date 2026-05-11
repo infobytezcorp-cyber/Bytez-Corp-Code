@@ -1,5 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import TelecallerChatBubble from "../components/chatpage/Telecallerchatbubble";
+import NotificationChatDropdown from "../components/chatpage/NotificationChatDropdown";
+import { markNotificationRead } from "../features/chatSlice";
 import {
   fetchMyAgent,
   toggleMyBreak,
@@ -180,10 +183,16 @@ export default function TelecallerPage() {
   const dispatch     = useDispatch();
   const { agent, activeCall, loading, breakLoading, callLoading, loginTime } =
     useSelector(s => s.myAgent);
+  const notifications = useSelector((state) => state.chat.notifications);
 
   const [activeTab,    setActiveTab]    = useState("dashboard");
   const [collapsed,    setCollapsed]    = useState(false);
   const [now,          setNow]          = useState(new Date());
+  const [adminId,      setAdminId]      = useState(null);
+  const [adminName,    setAdminName]    = useState("Admin");
+  const [chatOpen, setChatOpen] = useState(false);
+
+  const handleMarkNotifRead = (id) => dispatch(markNotificationRead(id));
   // ✅ FIX: Once clicked → remember forever (even across calls)
   const [callsEnabled, setCallsEnabled] = useState(false);
   const [incomingRequest, setIncomingRequest] = useState(null);
@@ -241,6 +250,22 @@ export default function TelecallerPage() {
     socket.on("force-logout", handleForceLogout);
     return () => socket.off("force-logout", handleForceLogout);
   }, [agent?._id, dispatch]);
+
+  useEffect(() => {
+    const loadAdminForChat = async () => {
+      try {
+        const res = await API.get("/users");
+        const admin = (res.data || []).find(user => user.role === "admin");
+        if (admin) {
+          setAdminId(admin._id);
+          setAdminName(admin.name || "Admin");
+        }
+      } catch (err) {
+        console.error("Failed to load admin user for chat:", err);
+      }
+    };
+    loadAdminForChat();
+  }, []);
 
   const handleToggleBreak = () => {
     if (!agent?._id || agent?.status === "busy") return;
@@ -368,6 +393,13 @@ export default function TelecallerPage() {
               {agent.loginTime ? formatTimeShort(agent.loginTime) : "—"}
             </span>
           </div>
+          <NotificationChatDropdown
+            myId={localStorage.getItem("userId")}
+            agents={adminId ? [{ _id: adminId, name: adminName }] : []}
+            notifications={notifications}
+            onMarkNotifRead={handleMarkNotifRead}
+            onOpenFullChat={() => setChatOpen(true)}
+          />
 
           {/* Twilio status indicator */}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl">
@@ -402,6 +434,16 @@ export default function TelecallerPage() {
           {tabContent[activeTab]}
         </div>
       </div>
+
+      {adminId && (
+        <TelecallerChatBubble
+          myId={localStorage.getItem("userId")}
+          adminId={adminId}
+          adminName={adminName}
+          open={chatOpen}
+          onToggle={setChatOpen}
+        />
+      )}
     </div>
   );
 }

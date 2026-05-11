@@ -240,7 +240,6 @@ export const createCall = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 // ─────────────────────────────────────────────────────────────
 // END CALL — agent free + next incoming auto-assign
 // ─────────────────────────────────────────────────────────────
@@ -320,11 +319,9 @@ export const assignCall = async (req, res) => {
 
     call.agent = agentId;
     call.assignedTo = agentId;
-    call.status = "assigned";
-    call.startTime = new Date();
+    call.assignedBy = req.user?._id || null;
+    call.status = "missed";
     await call.save();
-
-    await Agent.findByIdAndUpdate(agentId, { $set: { status: "busy", lastCallTime: new Date() } });
 
     io?.emit("callUpdated");
     return res.status(200).json({ success: true, data: call });
@@ -500,6 +497,7 @@ export const getAllCalls = async (req, res) => {
     const calls = await Call.find(filter)
       .populate("agent", "name status")
       .populate("assignedTo", "name")
+      .populate("assignedBy", "name role")
       .populate("contact", "name phone")
       .sort({ createdAt: -1 }).limit(pageSize);
 
@@ -525,7 +523,10 @@ export const getMyMissedCalls = async (req, res) => {
       filter.createdAt = { $gte: start, $lte: end };
     }
 
-    const calls = await Call.find(filter).populate("contact", "name phone").sort({ createdAt: -1 });
+    const calls = await Call.find(filter)
+      .populate("contact", "name phone")
+      .populate("assignedBy", "name role")
+      .sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: calls });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

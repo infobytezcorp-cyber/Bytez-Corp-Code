@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
+import API from "../services/api";
 import Sidebar from "../components/dashboards/visitors/Sidebar";
+import AdminChatPanel from "../components/chatpage/Adminchatpanel";
+import NotificationChatDropdown from "../components/chatpage/NotificationChatDropdown";
+import { markNotificationRead } from "../features/chatSlice";
 import AddUser from "../pages/Register";
 import {
   Search, X, Phone, MapPin, Clock, Users, TrendingUp,
@@ -14,7 +19,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 
-const API = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 // ── Palette ──────────────────────────────────────────────────────────────────
@@ -283,7 +288,7 @@ function SearchModal({ onClose }) {
     if (!query.trim()) { setError("Please enter a name or phone number"); return; }
     setLoading(true); setError("");
     try {
-      const res = await axios.get(`${API}/api/visitor/search`, { params: { query: query.trim() } });
+      const res = await axios.get(`${API_URL}/api/visitor/search`, { params: { query: query.trim() } });
       const v = res.data.visitor;
       if (v) {
         const visits = (res.data.visits || []).sort((a, b) => new Date(b.checkInTime) - new Date(a.checkInTime));
@@ -467,22 +472,30 @@ function Card({ title, subtitle, icon: Icon, children, style = {} }) {
 
 // ── Main Admin component ──────────────────────────────────────────────────────
 export default function Admin() {
+  const dispatch = useDispatch();
+  const notifications = useSelector((state) => state.chat.notifications);
+
   const [openForm,    setOpenForm]    = useState(false);
   const [showSearch,  setShowSearch]  = useState(false);
+  const [showChatPanel, setShowChatPanel] = useState(false);
   const [activeView,  setActiveView]  = useState("dashboard"); // "dashboard" | "crm"
   const [chartMode,   setChartMode]   = useState("visitors");  // "visitors" | "calls"
   const [visitors,    setVisitors]    = useState([]);
   const [calls,       setCalls]       = useState([]);
+  const [chatUsers,   setChatUsers]   = useState([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError,   setAnalyticsError]   = useState("");
+  const myId = localStorage.getItem("userId");
+
+  const handleMarkNotifRead = (id) => dispatch(markNotificationRead(id));
 
   const fetchDashboardData = async () => {
     setAnalyticsLoading(true);
     setAnalyticsError("");
     try {
       const [visitorRes, callRes] = await Promise.all([
-        axios.get(`${API}/api/visitor`, { params: { page: 1, limit: 5000 } }),
-        axios.get(`${API}/api/calls`, { params: { limit: 5000 } }),
+        axios.get(`${API_URL}/api/visitor`, { params: { page: 1, limit: 5000 } }),
+        axios.get(`${API_URL}/api/calls`, { params: { limit: 5000 } }),
       ]);
       setVisitors(visitorRes.data.visitors || []);
       setCalls(callRes.data.data || []);
@@ -498,6 +511,20 @@ export default function Admin() {
     const timer = setInterval(fetchDashboardData, 30000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const fetchChatUsers = async () => {
+      try {
+        const res = await API.get("/users");
+        setChatUsers((res.data || []).filter(user =>
+          user._id !== myId && user.role !== "admin"
+        ));
+      } catch (err) {
+        console.error("Failed to load chat users:", err);
+      }
+    };
+    if (myId) fetchChatUsers();
+  }, [myId]);
 
   const visitorAnalytics = useMemo(() => buildVisitorAnalytics(visitors), [visitors]);
   const callAnalytics = useMemo(() => buildCallAnalytics(calls), [calls]);
@@ -550,6 +577,13 @@ export default function Admin() {
             <p style={{ margin: 0, fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Manage visitors, enquiries &amp; institutional records</p>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <NotificationChatDropdown
+              myId={myId}
+              agents={chatUsers}
+              notifications={notifications}
+              onMarkNotifRead={handleMarkNotifRead}
+              onOpenFullChat={() => setShowChatPanel(true)}
+            />
             {activeView === "dashboard" && (
               <div style={{
                 display: "flex", gap: 4, padding: 4, border: "1px solid #e2e8f0",
@@ -596,6 +630,22 @@ export default function Admin() {
               </button>
             )}
             {/* Search Button */}
+            <button
+              onClick={() => setShowChatPanel(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: 7,
+                padding: "9px 16px", borderRadius: 12,
+                border: "1.5px solid #e2e8f0", background: "#f8fafc",
+                fontSize: 13, fontWeight: 500, color: "#475569", cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor="#6366f1"; e.currentTarget.style.color="#6366f1"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor="#e2e8f0"; e.currentTarget.style.color="#475569"; }}
+            >
+              <Search style={{ width: 15, height: 15 }} />
+              Open Chat
+            </button>
+
             <button
               onClick={() => setShowSearch(true)}
               style={{
@@ -900,6 +950,15 @@ export default function Admin() {
 
         </div>
       </div>
+
+      {/* ── Chat Panel Overlay ── */}
+      {showChatPanel && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,15,35,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ width: "100%", maxWidth: 1260, height: "calc(100vh - 40px)", background: "transparent" }}>
+            <AdminChatPanel myId={myId} agents={chatUsers} onClose={() => setShowChatPanel(false)} />
+          </div>
+        </div>
+      )}
 
       {/* ── Search Modal ── */}
       {showSearch && <SearchModal onClose={() => setShowSearch(false)} />}

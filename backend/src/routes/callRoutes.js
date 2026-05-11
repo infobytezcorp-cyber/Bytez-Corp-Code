@@ -31,7 +31,7 @@ router.get("/", getAllCalls);
 router.post("/", createCall);
 
 // ── Dynamic /:id ──────────────────────────────────────────────
-router.put("/:id/assign", assignCall);
+router.put("/:id/assign", verifyToken, assignCall);
 router.post("/:id/accept", verifyToken, acceptIncomingCall);
 router.post("/:id/reject", verifyToken, rejectIncomingCall);
 router.put("/:id/end", endCall);

@@ -22,8 +22,9 @@ import agentRoutes from "./src/routes/agentRoutes.js";
 import nursingRoutes  from "./src/routes/nursingRoutes.js";
 import watchmanRoutes from "./src/routes/watchmanRoutes.js";
 import adminRoutes from "./src/routes/adminRoutes.js";
+import chatRoutes from "./src/routes/chatRoutes.js";
 
-
+import registerChatSocket from "./src/middleware/Chatsocket.js";
 import { startMissedCallAlerts } from "./src/controllers/callController.js";
 
 const app = express();
@@ -35,11 +36,16 @@ export const io = new Server(server, {
     origin: [
       "http://localhost:5173",
       "http://127.0.0.1:5173",
+      "https://*.ngrok.io",  // Allow ngrok URLs
+      "https://*.ngrok.app", // Allow ngrok app URLs
+      "*",  // Allow all origins for development
     ],
     methods: ["GET", "POST"],
     credentials: true,
   },
 });
+
+registerChatSocket(io);
 
 io.on("connection", (socket) => {
   console.log("⚡ Client connected:", socket.id);
@@ -110,6 +116,8 @@ app.use("/api/agents", agentRoutes);
 app.use("/api/nursing",  nursingRoutes);
 app.use("/api/watchman", watchmanRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/uploads", express.static("uploads"));
 
 // Start Server
 const startServer = async () => {

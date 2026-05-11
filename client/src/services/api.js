@@ -1,4 +1,5 @@
 import axios from "axios";
+import socket from "./socket";
 
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL + "/api",
@@ -21,9 +22,12 @@ API.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid — clear storage and redirect to login
+      // Token expired or invalid — disconnect socket and clear storage
+      socket.disconnect();
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("role");
       // Telecaller and admin both go to login page
       window.location.href = "/";
     }

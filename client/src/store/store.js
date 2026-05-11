@@ -7,6 +7,7 @@ import agentReducer from "../features/agentSlice";
 import myAgentReducer from "../features/myAgentSlice";
 import callsReducer from "../features/callSlice";
 import twilioReducer from "../features/Twilioslice";
+import chatReducer from "../features/chatSlice";
 
 export const store = configureStore({
   reducer: {
@@ -17,7 +18,8 @@ export const store = configureStore({
     agents: agentReducer,
     myAgent: myAgentReducer,
     calls: callsReducer,
-    twilio: twilioReducer
+    twilio: twilioReducer,
+    chat: chatReducer,
   }
 });
 

@@ -6,6 +6,7 @@ const URL = (
 ).replace(/\/api$/, "");
 
 const socket = io(URL, {
+  autoConnect: false,
   transports: ["websocket", "polling"],
   reconnection: true,
   reconnectionAttempts: 10,

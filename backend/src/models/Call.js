@@ -27,6 +27,12 @@ const callSchema = new mongoose.Schema(
       default: null
     },
 
+    assignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null
+    },
+
     contact: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Contact",

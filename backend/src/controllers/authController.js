@@ -131,6 +131,7 @@ export const login = async (req, res) => {
 
     res.json({
       token,
+      userId:   user._id,
       role:     user.role,
       name:     user.name,
       email:    user.email,

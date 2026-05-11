@@ -17,25 +17,17 @@ import ModulesPage from "./pages/ModulesPage";
 import VisitorPage from "./pages/VisitorPage";
 import EnquiryCalls from "./pages/EnquiryCalls";
 import TelecallerPage from "./pages/TelecallerPage";
-import socket from "./services/socket";
-import { useEffect } from "react";
 import NursingPage from "./pages/NursingPage";
 import WatchmanPage from "./pages/WatchmanPage";
 
-
+import useChatSocket from "./services/useChatSocket";
 
 function App() {
-  useEffect(() => {
-    socket.connect();
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
+  const userId = localStorage.getItem("userId");
+  useChatSocket(userId);
   return (
     <>
       <Toaster position="top-right" reverseOrder={false} />
-
 
       <BrowserRouter>
         <Routes>
