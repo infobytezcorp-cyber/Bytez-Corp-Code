@@ -11,14 +11,37 @@ import SettingsPage from "./pages/SettingPage";
 import VisitorRegistration from "./components/dashboards/visitors/VisitorRegistration";
 import SuccessPage from "./components/dashboards/visitors/SuccessPage";
 import JobRegistorForm from "./components/dashboards/visitors/JobRegistorForm";
-// import VisitorRegistration from "./components/dashboards/VisitorRegistration";
 import Enquiry from "./pages/Enquiry";
+import EnquiryWithLeadForm from "./pages/EnquiryWithLeadForm";
+import CallCenter from "./pages/CallCenter";
+import StaffPage from "./pages/StaffPage";
+import ExEmployeePage from "./pages/ExEmployeePage";
+import WhatsAppLeads from "./pages/WhatsAppLeads";
+import TaskManagement from "./pages/TaskManagement";
+// import VisitorRegistration from "./components/dashboards/VisitorRegistration";
+// import Enquiry from "./pages/Enquiry";
 import ModulesPage from "./pages/ModulesPage";
 import VisitorPage from "./pages/VisitorPage";
+
+
+// import VisitorRegistration from "./components/dashboards/VisitorRegistration";
+// import Enquiry from "./pages/Enquiry";
+// import ModulesPage from "./pages/ModulesPage";
+// import VisitorPage from "./pages/VisitorPage";
 import EnquiryCalls from "./pages/EnquiryCalls";
 import TelecallerPage from "./pages/TelecallerPage";
 import NursingPage from "./pages/NursingPage";
 import WatchmanPage from "./pages/WatchmanPage";
+import socket from "./services/socket";
+import Trends from "./pages/Trends";
+import { useEffect } from "react";
+import ReportsLanding from "./pages/reports/ReportsLanding";
+import UserLoginReportPage from "./pages/reports/UserLoginReportPage";
+import UserCallReportPage from "./pages/reports/UserCallReportPage";
+import PlaceholderReport from "./pages/reports/PlaceholderReport";
+import UserTaskReportPage from "./pages/reports/UserTaskReportPage";
+import UserStageReportPage from "./pages/reports/UserStageReportPage";
+
 
 import useChatSocket from "./services/useChatSocket";
 
@@ -48,12 +71,109 @@ function App() {
           <Route path="/jobform" element={<JobRegistorForm />} />
           <Route path="/enquiry-calls" element={<EnquiryCalls />} />
           <Route path="/EnquiryCalls" element={<EnquiryCalls />} />
+          <Route path="/trends" element={<Trends />} />
 
           <Route
             path="/enquiry"
             element={
               <ProtectedRoute role="admin">
                 <Enquiry />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute role="admin">
+                <ReportsLanding />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/login"
+            element={
+              <ProtectedRoute role="admin">
+                <UserLoginReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/calls"
+            element={
+              <ProtectedRoute role="admin">
+                <UserCallReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/activity"
+            element={
+              <ProtectedRoute role="admin">
+                <PlaceholderReport title="User Activity Report" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/followup"
+            element={
+              <ProtectedRoute role="admin">
+                <PlaceholderReport title="Follow-Up Report" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/user"
+            element={
+              <ProtectedRoute role="admin">
+                <UserStageReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/tasks"
+            element={
+              <ProtectedRoute role="admin">
+                <UserTaskReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/callcenter"
+            element={
+              <ProtectedRoute role="admin">
+                <CallCenter />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff"
+            element={
+              <ProtectedRoute role="admin">
+                <StaffPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/ex-employees"
+            element={
+              <ProtectedRoute role="admin">
+                <ExEmployeePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/whatsapp-leads"
+            element={
+              <ProtectedRoute role="admin">
+                <WhatsAppLeads />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tasks"
+            element={
+              <ProtectedRoute role="admin">
+                <TaskManagement />
               </ProtectedRoute>
             }
           />
@@ -105,6 +225,15 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/telecaller/enquiry"
+            element={
+              <ProtectedRoute role="telecaller">
+                <EnquiryWithLeadForm />
+              </ProtectedRoute>
+            }
+          />
+          
         </Routes>
       </BrowserRouter>
     </>

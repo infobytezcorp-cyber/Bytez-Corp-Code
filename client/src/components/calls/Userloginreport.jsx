@@ -171,8 +171,9 @@ function AgentRow({ row, agent, maxWork, maxBreak, selectedDate }) {
 
 
 // Main report component
-export default function UserLoginReport({ agents = [], onClose }) {
+export default function UserLoginReport({ agents = [], calls = [], onClose }) {
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
+  const [showRawCalls, setShowRawCalls] = useState(false);
 
   // Prepare report data with memoization
   const reportData = useMemo(() => {
@@ -247,11 +248,19 @@ export default function UserLoginReport({ agents = [], onClose }) {
           <h2 className="text-xl font-black text-slate-900 tracking-tight">Agent Performance Report</h2>
           <p className="text-xs text-slate-400 font-semibold mt-0.5">Click any row to expand session & break details</p>
         </div>
-        <input
-          type="date" value={selectedDate}
-          onChange={e => setSelectedDate(e.target.value)}
-          className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-300 bg-slate-50 cursor-pointer"
-        />
+        <div className="flex items-center gap-3">
+          <input
+            type="date" value={selectedDate}
+            onChange={e => setSelectedDate(e.target.value)}
+            className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-300 bg-slate-50 cursor-pointer"
+          />
+          <button
+            onClick={() => setShowRawCalls(v => !v)}
+            className="px-4 py-2 rounded-lg bg-white border text-sm font-bold"
+          >
+            {showRawCalls ? 'Hide Calls' : 'Show Calls'}
+          </button>
+        </div>
       </div>
 
       <div className="px-8 py-6 space-y-5">
@@ -278,6 +287,41 @@ export default function UserLoginReport({ agents = [], onClose }) {
 
         {/* Rows */}
         <div className="flex flex-col gap-3">
+          {showRawCalls && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-100">
+                <thead className="bg-slate-50 text-[11px] font-black text-slate-400 uppercase">
+                  <tr>
+                    <th className="px-4 py-3 text-left">#</th>
+                    <th className="px-4 py-3 text-left">Call ID</th>
+                    <th className="px-4 py-3 text-left">Agent</th>
+                    <th className="px-4 py-3 text-left">From</th>
+                    <th className="px-4 py-3 text-left">To</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-left">Duration</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm text-slate-700">
+                  {calls && calls.length === 0 && (
+                    <tr><td colSpan={8} className="p-6 text-center text-slate-400">No calls found.</td></tr>
+                  )}
+                  {calls && calls.map((c, i) => (
+                    <tr key={c._id || i} className="border-t border-slate-50 hover:bg-slate-50">
+                      <td className="px-4 py-3">{i + 1}</td>
+                      <td className="px-4 py-3">{c._id}</td>
+                      <td className="px-4 py-3">{(c.agent && (c.agent.name || c.agent)) || (c.assignedTo && (c.assignedTo.name || c.assignedTo)) || '—'}</td>
+                      <td className="px-4 py-3">{c.from || c.caller || '—'}</td>
+                      <td className="px-4 py-3">{c.to || c.number || '—'}</td>
+                      <td className="px-4 py-3">{c.status || '—'}</td>
+                      <td className="px-4 py-3">{c.createdAt ? new Date(c.createdAt).toLocaleString() : '—'}</td>
+                      <td className="px-4 py-3">{c.duration || c.callDuration || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           {reportData.length === 0 ? (
             <div className="py-20 text-center bg-white rounded-2xl border border-slate-100">
               <p className="text-3xl mb-2">📭</p>

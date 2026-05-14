@@ -161,7 +161,7 @@ export const updateVisitor = async (req, res) => {
         const visitor = await Visitor.findByIdAndUpdate(
             req.params.id,
             { name },
-            { new: true }
+            { returnDocument: 'after' }
         );
 
         if (!visitor) {

@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { fetchEnquiries, setFilters, updateEnquiry } from '../../features/enquirySlice';
 import { ENQUIRY_STAGES, ENQUIRY_LEADS } from '../../constants/enquiryConstants';
 import EnquiryDetailModal from './EnquiryDetailModal';
-import Sidebar from '../dashboards/visitors/Sidebar';
+import Sidebar from '../dashboards/Sidebar';
 
 const EnquiryListContent = () => {
   const dispatch = useDispatch();
@@ -11,11 +12,24 @@ const EnquiryListContent = () => {
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedLeadCategory, setSelectedLeadCategory] = useState(null);
+  const [activeLeadTab, setActiveLeadTab] = useState('all'); 
 
-  // 1. Fetch ALL enquiries once so stat cards always have the complete pipeline data
   useEffect(() => {
     dispatch(fetchEnquiries());
   }, [dispatch]);
+
+  // Handle active lead tab changes
+  useEffect(() => {
+    if (activeLeadTab === 'online') {
+      setSelectedLeadCategory('Online');
+    } else if (activeLeadTab === 'offline') {
+      setSelectedLeadCategory('Offline');
+    } else {
+      setSelectedLeadCategory(null);
+    }
+    // Clear specific lead filter when switching main tabs
+    dispatch(setFilters({ lead: null }));
+  }, [activeLeadTab, dispatch]);
 
   // 2. Global Stats: Get LATEST entry per client, then count by stage
   const stats = useMemo(() => {
@@ -60,6 +74,44 @@ const EnquiryListContent = () => {
     };
   }, [enquiries]);
 
+  // Filtered Stats based on active lead tab
+  const filteredStats = useMemo(() => {
+    const onlineLeadsList = ['Website', 'Whatsapp', 'Facebook', 'Instagram', 'LinkedIn', 'Yellow page', 'Mail'];
+    const offlineLeadsList = ['Referral cold clients', 'Existing clients', 'Doctors', 'Business partners'];
+
+    let filtered = enquiries;
+
+    if (activeLeadTab === 'online') {
+      filtered = enquiries.filter(e => onlineLeadsList.includes(e.lead || e.source));
+    } else if (activeLeadTab === 'offline') {
+      filtered = enquiries.filter(e => offlineLeadsList.includes(e.lead || e.source));
+    }
+
+    // Group by clientId, keep only the latest per client
+    const latestByClient = {};
+    filtered.forEach(enquiry => {
+      const clientId = enquiry.clientId;
+      if (!latestByClient[clientId] || 
+          new Date(enquiry.createdAt) > new Date(latestByClient[clientId].createdAt)) {
+        latestByClient[clientId] = enquiry;
+      }
+    });
+
+    const uniqueClients = Object.values(latestByClient);
+    const enrolledCount = uniqueClients.filter(e => e.stage === 'Enrolled').length;
+    const newCount = uniqueClients.filter(e => e.stage === 'New Enquiry').length;
+    const contactCount = uniqueClients.filter(e => e.stage === 'Contact').length;
+    const pitchingCount = uniqueClients.filter(e => e.stage === 'Pitching').length;
+
+    return {
+      total: uniqueClients.length,
+      newEnquiries: newCount,
+      inContact: contactCount,
+      proposal: pitchingCount,
+      enrolled: enrolledCount,
+    };
+  }, [enquiries, activeLeadTab]);
+
   // Use clientId from database (auto-generated)
   const getClientId = useCallback((enquiry) => {
     return enquiry.clientId || 'N/A';
@@ -70,13 +122,155 @@ const EnquiryListContent = () => {
   const offlineLeads = ['Referral cold clients', 'Existing clients', 'Doctors', 'Business partners'];
   
   const leadStats = useMemo(() => {
-    const onlineCount = enquiries.filter(e => onlineLeads.includes(e.lead || e.source)).length;
-    const offlineCount = enquiries.filter(e => offlineLeads.includes(e.lead || e.source)).length;
+    let filtered = enquiries;
+    
+    // Apply date filtering
+    if (filters.fromDate || filters.toDate) {
+      filtered = enquiries.filter(enquiry => {
+        const enquiryDate = new Date(enquiry.createdAt);
+        if (filters.fromDate) {
+          const fromDate = new Date(filters.fromDate);
+          fromDate.setHours(0, 0, 0, 0);
+          if (enquiryDate < fromDate) return false;
+        }
+        if (filters.toDate) {
+          const toDate = new Date(filters.toDate);
+          toDate.setHours(23, 59, 59, 999);
+          if (enquiryDate > toDate) return false;
+        }
+        return true;
+      });
+    }
+
+    const onlineCount = filtered.filter(e => onlineLeads.includes(e.lead || e.source)).length;
+    const offlineCount = filtered.filter(e => offlineLeads.includes(e.lead || e.source)).length;
     return {
       online: onlineCount,
       offline: offlineCount,
       total: onlineCount + offlineCount
     };
+  }, [enquiries, filters.fromDate, filters.toDate]);
+
+  // Care Type categorization
+  const homeCareTypes = ['Home Nursing 12/7', 'Home Nursing 24/7', 'Patient Care Attender 12/7', 'Patient Care Attender 24/7', 'Cook 12/7', 'Cook 24/7', 'Baby Sitter 12/7', 'Maid Staff 12/7', 'Maid Staff 24/7'];
+  const healthCareTypes = ['Emergency Nurse 12/7', 'Emergency Nurse 24/7', 'Old Age Home', 'Doctor @ Home', 'Ambulance Service', 'Home Sample Collection', 'Diploma Nurse 24/7', 'Diploma Nurse 12/7', 'Elder Care Service 24/7'];
+
+  // Calculate Care Type Stats with date filter
+  const careTypeStats = useMemo(() => {
+    let filtered = enquiries;
+    
+    // Apply date filtering
+    if (filters.fromDate || filters.toDate) {
+      filtered = enquiries.filter(enquiry => {
+        const enquiryDate = new Date(enquiry.createdAt);
+        if (filters.fromDate) {
+          const fromDate = new Date(filters.fromDate);
+          fromDate.setHours(0, 0, 0, 0);
+          if (enquiryDate < fromDate) return false;
+        }
+        if (filters.toDate) {
+          const toDate = new Date(filters.toDate);
+          toDate.setHours(23, 59, 59, 999);
+          if (enquiryDate > toDate) return false;
+        }
+        return true;
+      });
+    }
+
+    const homeCareCount = filtered.filter(e => homeCareTypes.includes(e.careType)).length;
+    const healthCareCount = filtered.filter(e => healthCareTypes.includes(e.careType)).length;
+    
+    return {
+      homeCare: homeCareCount,
+      healthCare: healthCareCount,
+      total: homeCareCount + healthCareCount
+    };
+  }, [enquiries, filters.fromDate, filters.toDate]);
+
+  // Online Care Type Stats - filtered for online leads only
+  const onlineCareTypeStats = useMemo(() => {
+    const onlineLeadsList = ['Website', 'Whatsapp', 'Facebook', 'Instagram', 'LinkedIn', 'Yellow page', 'Mail'];
+    let filtered = enquiries.filter(e => onlineLeadsList.includes(e.lead || e.source));
+    
+    // Apply date filtering
+    if (filters.fromDate || filters.toDate) {
+      filtered = filtered.filter(enquiry => {
+        const enquiryDate = new Date(enquiry.createdAt);
+        if (filters.fromDate) {
+          const fromDate = new Date(filters.fromDate);
+          fromDate.setHours(0, 0, 0, 0);
+          if (enquiryDate < fromDate) return false;
+        }
+        if (filters.toDate) {
+          const toDate = new Date(filters.toDate);
+          toDate.setHours(23, 59, 59, 999);
+          if (enquiryDate > toDate) return false;
+        }
+        return true;
+      });
+    }
+
+    const homeCareCount = filtered.filter(e => homeCareTypes.includes(e.careType)).length;
+    const healthCareCount = filtered.filter(e => healthCareTypes.includes(e.careType)).length;
+    
+    return {
+      homeCare: homeCareCount,
+      healthCare: healthCareCount,
+      total: homeCareCount + healthCareCount
+    };
+  }, [enquiries, filters.fromDate, filters.toDate]);
+
+  // Offline Care Type Stats - filtered for offline leads only
+  const offlineCareTypeStats = useMemo(() => {
+    const offlineLeadsList = ['Referral cold clients', 'Existing clients', 'Doctors', 'Business partners'];
+    let filtered = enquiries.filter(e => offlineLeadsList.includes(e.lead || e.source));
+    
+    // Apply date filtering
+    if (filters.fromDate || filters.toDate) {
+      filtered = filtered.filter(enquiry => {
+        const enquiryDate = new Date(enquiry.createdAt);
+        if (filters.fromDate) {
+          const fromDate = new Date(filters.fromDate);
+          fromDate.setHours(0, 0, 0, 0);
+          if (enquiryDate < fromDate) return false;
+        }
+        if (filters.toDate) {
+          const toDate = new Date(filters.toDate);
+          toDate.setHours(23, 59, 59, 999);
+          if (enquiryDate > toDate) return false;
+        }
+        return true;
+      });
+    }
+
+    const homeCareCount = filtered.filter(e => homeCareTypes.includes(e.careType)).length;
+    const healthCareCount = filtered.filter(e => healthCareTypes.includes(e.careType)).length;
+    
+    return {
+      homeCare: homeCareCount,
+      healthCare: healthCareCount,
+      total: homeCareCount + healthCareCount
+    };
+  }, [enquiries, filters.fromDate, filters.toDate]);
+
+  // Online Leads Breakdown Stats
+  const onlineLeadsBreakdown = useMemo(() => {
+    const onlineLeadsList = ['Website', 'Whatsapp', 'Facebook', 'Instagram', 'LinkedIn', 'Yellow page', 'Mail'];
+    const breakdown = {};
+    onlineLeadsList.forEach(lead => {
+      breakdown[lead] = enquiries.filter(e => (e.lead || e.source) === lead).length;
+    });
+    return breakdown;
+  }, [enquiries]);
+
+  // Offline Leads Breakdown Stats
+  const offlineLeadsBreakdown = useMemo(() => {
+    const offlineLeadsList = ['Referral cold clients', 'Existing clients', 'Doctors', 'Business partners'];
+    const breakdown = {};
+    offlineLeadsList.forEach(lead => {
+      breakdown[lead] = enquiries.filter(e => (e.lead || e.source) === lead).length;
+    });
+    return breakdown;
   }, [enquiries]);
 
   // Filtered Lead Stats: Show only selected lead or all leads
@@ -132,7 +326,7 @@ const EnquiryListContent = () => {
     const offlineLeads = ['Old clients', 'Existing clients', 'Doctor', 'Medical', 'Nurse', 'Compounder', 'Electrician', 'Plumber', 'Camp', 'Stall', 'Event', 'Business partners'];
     
     // First apply filters
-    const filtered = enquiries.filter(enquiry => {
+    let filtered = enquiries.filter(enquiry => {
       const matchStage = filters.stage ? enquiry.stage === filters.stage : true;
       
       // Lead filtering with category support
@@ -173,6 +367,15 @@ const EnquiryListContent = () => {
       return matchStage && matchLead && matchSearch && matchCareType && matchDateRange;
     });
 
+    // Filter by active lead tab
+    if (activeLeadTab === 'online') {
+      const onlineLeadsList = ['Website', 'Whatsapp', 'Facebook', 'Instagram', 'LinkedIn', 'Yellow page', 'Mail'];
+      filtered = filtered.filter(e => onlineLeadsList.includes(e.lead || e.source));
+    } else if (activeLeadTab === 'offline') {
+      const offlineLeadsList = ['Referral cold clients', 'Existing clients', 'Doctors', 'Business partners'];
+      filtered = filtered.filter(e => offlineLeadsList.includes(e.lead || e.source));
+    }
+
     // Then group by clientId and keep only the LATEST (most recent) entry
     const latestByClient = {};
     filtered.forEach(enquiry => {
@@ -184,7 +387,7 @@ const EnquiryListContent = () => {
     });
 
     return Object.values(latestByClient);
-  }, [enquiries, filters, selectedLeadCategory]);
+  }, [enquiries, filters, selectedLeadCategory, activeLeadTab]);
 
   const getStageColor = (stage) => {
     const colors = {
@@ -299,70 +502,137 @@ const EnquiryListContent = () => {
     </div>
   );
 
-  const SpeedMeter = ({ value }) => {
-    const getSpeedColor = () => {
-      if (value < 34) return { fill: '#ef4444', label: 'Low' };
-      if (value < 67) return { fill: '#eab308', label: 'Medium' };
-      return { fill: '#22c55e', label: 'High' };
-    };
+  const LeadDistributionChart = () => {
+    const chartData = [
+      { name: 'Online Leads', value: leadStats.online, fill: '#3b82f6' },
+      { name: 'Offline Leads', value: leadStats.offline, fill: '#f59e0b' }
+    ];
 
-    const color = getSpeedColor();
-    const angle = (value / 100) * 180;
+    const COLORS = ['#3b82f6', '#f59e0b'];
 
     return (
-      <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-200 hover:shadow-md transition-shadow h-full flex flex-col justify-center">
-        <p className="text-sm font-medium text-gray-600 mb-6 text-center">Conversion Rate</p>
+      <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200 hover:shadow-md transition-shadow flex flex-col justify-center h-full">
+        <p className="text-sm font-medium text-gray-600 mb-3 text-center">Lead Distribution</p>
         <div className="flex flex-col items-center justify-center">
-          <svg width="200" height="140" viewBox="0 0 150 100" className="mb-6">
-            <path
-              d="M 20 80 A 60 60 0 0 1 130 80"
-              stroke="#e5e7eb"
-              strokeWidth="8"
-              fill="none"
-              strokeLinecap="round"
-            />
-            <path
-              d="M 20 80 A 60 60 0 0 1 130 80"
-              stroke={color.fill}
-              strokeWidth="8"
-              fill="none"
-              strokeLinecap="round"
-              strokeDasharray={`${(angle / 180) * (Math.PI * 60)} ${Math.PI * 60}`}
-              opacity="0.8"
-            />
-            <line
-              x1="75"
-              y1="80"
-              x2={75 + 50 * Math.cos((angle - 90) * (Math.PI / 180))}
-              y2={80 + 50 * Math.sin((angle - 90) * (Math.PI / 180))}
-              stroke={color.fill}
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-            <circle cx="75" cy="80" r="5" fill={color.fill} />
-            {[0, 25, 50, 75, 100].map((tick) => {
-              const tickAngle = (tick / 100) * 180;
-              const tickX1 = 75 + 60 * Math.cos((tickAngle - 90) * (Math.PI / 180));
-              const tickY1 = 80 + 60 * Math.sin((tickAngle - 90) * (Math.PI / 180));
-              const tickX2 = 75 + 68 * Math.cos((tickAngle - 90) * (Math.PI / 180));
-              const tickY2 = 80 + 68 * Math.sin((tickAngle - 90) * (Math.PI / 180));
-              return (
-                <line
-                  key={tick}
-                  x1={tickX1}
-                  y1={tickY1}
-                  x2={tickX2}
-                  y2={tickY2}
-                  stroke="#9ca3af"
-                  strokeWidth="1.5"
-                />
-              );
-            })}
-          </svg>
-          <div className="text-center">
-            <p className="text-5xl font-bold" style={{ color: color.fill }}>{value}%</p>
-            <p className="text-sm font-medium text-gray-500 mt-2" style={{ color: color.fill }}>{color.label} Conversion</p>
-          </div>
+          <ResponsiveContainer width="100%" height={150}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                outerRadius={50}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => value} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  };
+
+  const CareTypeChart = ({ stats = careTypeStats, title = 'Care Type Distribution' }) => {
+    const chartData = [
+      { name: 'Home Care', value: stats.homeCare, fill: '#10b981' },
+      { name: 'Health Care', value: stats.healthCare, fill: '#f59e0b' }
+    ];
+
+    const COLORS = ['#10b981', '#f59e0b'];
+
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200 hover:shadow-md transition-shadow flex flex-col justify-center h-full">
+        <p className="text-sm font-medium text-gray-600 mb-3 text-center">{title}</p>
+        <div className="flex flex-col items-center justify-center">
+          <ResponsiveContainer width="100%" height={150}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" fontSize={12} />
+              <YAxis fontSize={12} />
+              <Tooltip formatter={(value) => value} />
+              <Bar dataKey="value" fill="#8884d8">
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  };
+
+  const OnlineLeadsChart = () => {
+    const chartData = Object.entries(onlineLeadsBreakdown)
+      .filter(([_, value]) => value > 0)
+      .map(([name, value]) => ({ name, value }));
+
+    const COLORS = ['#3b82f6', '#1d4ed8', '#1e40af', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe'];
+
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200 hover:shadow-md transition-shadow flex flex-col justify-center h-full">
+        <p className="text-sm font-medium text-gray-600 mb-3 text-center">Online Leads Breakdown</p>
+        <div className="flex flex-col items-center justify-center">
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, value, percent }) => `${name}: ${value}`}
+                outerRadius={50}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => value} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  };
+
+  const OfflineLeadsChart = () => {
+    const chartData = Object.entries(offlineLeadsBreakdown)
+      .filter(([_, value]) => value > 0)
+      .map(([name, value]) => ({ name, value }));
+
+    const COLORS = ['#f59e0b', '#d97706', '#b45309', '#fbbf24', '#fcd34d'];
+
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200 hover:shadow-md transition-shadow flex flex-col justify-center h-full">
+        <p className="text-sm font-medium text-gray-600 mb-3 text-center">Offline Leads Breakdown</p>
+        <div className="flex flex-col items-center justify-center">
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, value, percent }) => `${name}: ${value}`}
+                outerRadius={50}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => value} />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
       </div>
     );
@@ -374,58 +644,113 @@ const EnquiryListContent = () => {
       
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="border-b border-gray-200 px-8 py-6 bg-white">
+        {/* <div className="border-b border-gray-200 px-8 py-6 bg-white">
           <h1 className="text-3xl font-bold text-gray-900">Enquiry Management</h1>
           <p className="text-gray-600 mt-1">Track and manage all customer enquiries and CRM stages</p>
-        </div>
+        </div> */}
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="p-8">
-            <div className="w-full mx-auto">
-              {/* Stats Grid - Main Overview */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-                <StatCard
-                  title="Total Enquiries"
-                  value={stats.total}
-                  icon={<svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
-                  bgColor="bg-blue-500"
-                />
-                <StatCard
-                  title="New Enquiries"
-                  value={stats.newEnquiries}
-                  icon={<svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>}
-                  bgColor="bg-yellow-500"
-                />
-                <StatCard
-                  title="In Contact"
-                  value={stats.inContact}
-                  icon={<svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>}
-                  bgColor="bg-blue-600"
-                />
-                <StatCard
-                  title="Enrolled"
-                  value={stats.enrolled}
-                  icon={<svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-                  bgColor="bg-green-500"
-                />
-                <StatCard
-                  title="Pitching Stage"
-                  value={stats.proposal}
-                  icon={<svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-                  bgColor="bg-purple-500"
-                />
+          <div className="p-8 ">
+            <div className=" w-full mx-auto">
+              {/* Lead Tabs - All, Online, Offline */}
+              <div className="flex gap-3 mb-6">
+                <button
+                  onClick={() => setActiveLeadTab('all')}
+                  className={`px-6 py-2 rounded-lg font-medium transition ${
+                    activeLeadTab === 'all'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-300'
+                  }`}
+                >
+                  All Leads
+                </button>
+                <button
+                  onClick={() => setActiveLeadTab('online')}
+                  className={`px-6 py-2 rounded-lg font-medium transition ${
+                    activeLeadTab === 'online'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-300'
+                  }`}
+                >
+                  Online Leads
+                </button>
+                <button
+                  onClick={() => setActiveLeadTab('offline')}
+                  className={`px-6 py-2 rounded-lg font-medium transition ${
+                    activeLeadTab === 'offline'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-300'
+                  }`}
+                >
+                  Offline Leads
+                </button>
               </div>
 
-              {/* Secondary Stats - CRM Progress */}
-              <div className="flex-1 overflow-y-auto w-20rem mx-auto p-8">
+              {/* Stats Grid - Main Overview */}
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-2">
+                  {activeLeadTab === 'all' && 'All Stages Statistics'}
+                  {activeLeadTab === 'online' && 'Online Leads Statistics'}
+                  {activeLeadTab === 'offline' && 'Offline Leads Statistics'}
+                </p>
+                <div className="text-sm font-bold text-slate-700 mt-6 mb-2 uppercase tracking-wider grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                  <StatCard
+                    title="Total Enquiries"
+                    value={filteredStats.total}
+                    icon={<svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+                    bgColor="bg-blue-500"
+                  />
+                  <StatCard
+                    title="New Enquiries"
+                    value={filteredStats.newEnquiries}
+                    icon={<svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>}
+                    bgColor="bg-yellow-500"
+                  />
+                  {/* <StatCard
+                    title="In Contact"
+                    value={stats.inContact}
+                    icon={<svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>}
+                    bgColor="bg-blue-600"
+                  /> */}
+                  <StatCard
+                    title="Pitching Stage"
+                    value={filteredStats.proposal}
+                    icon={<svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                    bgColor="bg-purple-500"
+                  />
+                  <StatCard
+                    title="Enrolled"
+                    value={filteredStats.enrolled}
+                    icon={<svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                    bgColor="bg-green-500"
+                  />
+                </div>
+              </div>
 
-                <SpeedMeter value={stats.averageConversionRate} />
+              {/* Charts Section - Changes based on active tab */}
+              <div className="mb-8 text-sm font-bold text-slate-700 mt-6 mb-2 uppercase tracking-wider">
+                {activeLeadTab === 'all' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <LeadDistributionChart />
+                    <CareTypeChart />
+                  </div>
+                )}
+                {activeLeadTab === 'online' && (
+                  <div className="max-w-2xl mx-auto">
+                    <CareTypeChart stats={onlineCareTypeStats} title="Online Leads - Care Type Distribution" />
+                  </div>
+                )}
+                {activeLeadTab === 'offline' && (
+                  <div className="max-w-2xl mx-auto">
+                    <CareTypeChart stats={offlineCareTypeStats} title="Offline Leads - Care Type Distribution" />
+                  </div>
+                )}
               </div>
 
               {/* Filters Section - Column Wise Design */}
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-8 ">
+                <h3 className="text-lg text-sm font-bold text-slate-700  uppercase tracking-wider mb-4">Filters</h3>
                 {/* Changed grid-cols-3 to grid-cols-4 to fit the new filter */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Stage Filter */}
@@ -438,7 +763,7 @@ const EnquiryListContent = () => {
                     >
                       <option value="">All Stages</option>
                       <option value="New Enquiry">New Enquiry</option>
-                      <option value="Contact">Contact</option>
+                      {/* <option value="Contact">Contact</option> */}
                       <option value="Pitching">Pitching</option>
                       <option value="Enrolled">Enrolled</option>
                     </select>
@@ -452,125 +777,119 @@ const EnquiryListContent = () => {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 transition"
                     >
                       <option value="">All Care Types</option>
-                      <option value="Home Nursing 12/7">Home Nursing 12/7</option>
-                      <option value="Emergency Nurse 12/7">Emergency Nurse 12/7</option>
-                      <option value="Old Age Home">Old Age Home</option>
-                      <option value="Doctor @ Home">Doctor @ Home</option>
-                      <option value="Ambulance Service">Ambulance Service</option>
-                      <option value="Home Sample Collection">Home Sample Collection</option>
-                      <option value="Patient Care Attender 12/7">Patient Care Attender 12/7</option>
-                      <option value="Cook 12/7">Cook 12/7</option>
-                      <option value="Diploma Nurse 24/7">Diploma Nurse 24/7</option>
-                      <option value="Diploma Nurse 12/7">Diploma Nurse 12/7</option>
-                      <option value="Baby Sitter 12/7">Baby Sitter 12/7</option>
-                      <option value="Patient Care Attender 24/7">Patient Care Attender 24/7</option>
-                      <option value="Home Nursing 24/7">Home Nursing 24/7</option>
-                      <option value="Emergency Nurse 24/7">Emergency Nurse 24/7</option>
-                      <option value="Elder Care Service 24/7">Elder Care Service 24/7</option>
-                      <option value="Cook 24/7">Cook 24/7</option>
-                      <option value="Maid Staff 12/7">Maid Staff 12/7</option>
-                      <option value="Maid Staff 24/7">Maid Staff 24/7</option>
+                      <optgroup label="Home Care">
+                        <option value="Home Nursing 12/7">Home Nursing 12/7</option>
+                        <option value="Home Nursing 24/7">Home Nursing 24/7</option>
+                        <option value="Patient Care Attender 12/7">Patient Care Attender 12/7</option>
+                        <option value="Patient Care Attender 24/7">Patient Care Attender 24/7</option>
+                        <option value="Cook 12/7">Cook 12/7</option>
+                        <option value="Cook 24/7">Cook 24/7</option>
+                        <option value="Baby Sitter 12/7">Baby Sitter 12/7</option>
+                        <option value="Maid Staff 12/7">Maid Staff 12/7</option>
+                        <option value="Maid Staff 24/7">Maid Staff 24/7</option>
+                      </optgroup>
+                      <optgroup label="Health Care">
+                        <option value="Emergency Nurse 12/7">Emergency Nurse 12/7</option>
+                        <option value="Emergency Nurse 24/7">Emergency Nurse 24/7</option>
+                        <option value="Old Age Home">Old Age Home</option>
+                        <option value="Doctor @ Home">Doctor @ Home</option>
+                        <option value="Ambulance Service">Ambulance Service</option>
+                        <option value="Home Sample Collection">Home Sample Collection</option>
+                        <option value="Diploma Nurse 24/7">Diploma Nurse 24/7</option>
+                        <option value="Diploma Nurse 12/7">Diploma Nurse 12/7</option>
+                        <option value="Elder Care Service 24/7">Elder Care Service 24/7</option>
+                      </optgroup>
                     </select>
                   </div>
 
                   {/* Lead Filter - Two Level */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Leads Category</label>
-                    <div className="flex gap-2 mb-3">
-                      <button
-                        onClick={() => {
-                          setSelectedLeadCategory('Online');
-                          dispatch(setFilters({ leads: null }));
-                        }}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                          selectedLeadCategory === 'Online'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        Online
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedLeadCategory('Offline');
-                          dispatch(setFilters({ leads: null }));
-                        }}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                          selectedLeadCategory === 'Offline'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        Offline
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedLeadCategory(null);
-                          dispatch(setFilters({ lead: null }));
-                        }}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                          selectedLeadCategory === null
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        All Leads
-                      </button>
-                    </div>
+                  {activeLeadTab !== 'all' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-[-4px]">Leads Category</label>
+                      <div className="flex gap-2 mb-3">
+                        
+                        {/* 2. Top la 'online' click panna 'Online' button mattum theriyum */}
+                        {/* {activeLeadTab === 'online' && (
+                          <button
+                            onClick={() => {
+                              setSelectedLeadCategory('Online');
+                              dispatch(setFilters({ leads: null }));
+                            }}
+                            className="px-4 py-2 rounded-lg text-sm font-medium transition bg-blue-600 text-white"
+                          >
+                            Online
+                          </button>
+                        )} */}
 
-                    {selectedLeadCategory && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Specific Lead</label>
-                        <select
-                          value={filters.lead || ''}
-                          onChange={(e) => dispatch(setFilters({ lead: e.target.value || null }))}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                        >
-                          <option value="">All {selectedLeadCategory} Leads</option>
-                          {selectedLeadCategory === 'Online' && (
-                            <>
-                              <option value={ENQUIRY_LEADS.WEBSITE}>{ENQUIRY_LEADS.WEBSITE}</option>
-                              <option value={ENQUIRY_LEADS.WHATSAPP}>{ENQUIRY_LEADS.WHATSAPP}</option>
-                              <option value={ENQUIRY_LEADS.FACEBOOK}>{ENQUIRY_LEADS.FACEBOOK}</option>
-                              <option value={ENQUIRY_LEADS.INSTAGRAM}>{ENQUIRY_LEADS.INSTAGRAM}</option>
-                              <option value={ENQUIRY_LEADS.LINKEDIN}>{ENQUIRY_LEADS.LINKEDIN}</option>
-                              <option value={ENQUIRY_LEADS.YELLOW_PAGE}>{ENQUIRY_LEADS.YELLOW_PAGE}</option>
-                              <option value={ENQUIRY_LEADS.MAIL}>{ENQUIRY_LEADS.MAIL}</option>
-                              <option value={ENQUIRY_LEADS.TAWK_TO}>{ENQUIRY_LEADS.TAWK_TO}</option>
-                              <option value={ENQUIRY_LEADS.META_CAMPAIGNS}>{ENQUIRY_LEADS.META_CAMPAIGNS}</option>
-                              <option value={ENQUIRY_LEADS.GOOGLE_CAMPAIGNS}>{ENQUIRY_LEADS.GOOGLE_CAMPAIGNS}</option>
-                            </>
-                          )}
-                          {selectedLeadCategory === 'Offline' && (
-                            <>
-                              <optgroup label="Referral">
-                                <option value={ENQUIRY_LEADS.OLD_CLIENTS}>{ENQUIRY_LEADS.OLD_CLIENTS}</option>
-                                <option value={ENQUIRY_LEADS.EXISTING_CLIENTS}>{ENQUIRY_LEADS.EXISTING_CLIENTS}</option>
-                              </optgroup>
-                              <optgroup label="Professional">
-                                <option value={ENQUIRY_LEADS.DOCTOR}>{ENQUIRY_LEADS.DOCTOR}</option>
-                                <option value={ENQUIRY_LEADS.MEDICAL}>{ENQUIRY_LEADS.MEDICAL}</option>
-                                <option value={ENQUIRY_LEADS.NURSE}>{ENQUIRY_LEADS.NURSE}</option>
-                              </optgroup>
-                              <optgroup label="Unprofessional">
-                                <option value={ENQUIRY_LEADS.COMPOUNDER}>{ENQUIRY_LEADS.COMPOUNDER}</option>
-                                <option value={ENQUIRY_LEADS.ELECTRICIAN}>{ENQUIRY_LEADS.ELECTRICIAN}</option>
-                                <option value={ENQUIRY_LEADS.PLUMBER}>{ENQUIRY_LEADS.PLUMBER}</option>
-                              </optgroup>
-                              <optgroup label="Events & Stalls">
-                                <option value={ENQUIRY_LEADS.CAMP}>{ENQUIRY_LEADS.CAMP}</option>
-                                <option value={ENQUIRY_LEADS.STALL}>{ENQUIRY_LEADS.STALL}</option>
-                                <option value={ENQUIRY_LEADS.EVENT}>{ENQUIRY_LEADS.EVENT}</option>
-                              </optgroup>
-                              <optgroup label="Business Partners">
-                                <option value={ENQUIRY_LEADS.BUSINESS_PARTNERS}>{ENQUIRY_LEADS.BUSINESS_PARTNERS}</option>
-                              </optgroup>
-                            </>
-                          )}
-                        </select>
+                        {/* 3. Top la 'offline' click panna 'Offline' button mattum theriyum */}
+                        {/* {activeLeadTab === 'offline' && (
+                          <button
+                            onClick={() => {
+                              setSelectedLeadCategory('Offline');
+                              dispatch(setFilters({ leads: null }));
+                            }}
+                            className="px-4 py-2 rounded-lg text-sm font-medium transition bg-blue-600 text-white"
+                          >
+                            Offline
+                          </button>
+                        )} */}
                       </div>
+
+                      {/* Specific Lead Dropdown based on category */}
+                      {selectedLeadCategory && (
+                        <div>
+                          {/* <label className="block text-sm font-medium text-gray-700 mb-2">Specific Lead</label> */}
+                          <select
+                            value={filters.lead || ''}
+                            onChange={(e) => dispatch(setFilters({ lead: e.target.value || null }))}
+                            className="w-full px-4 py-2 pt-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                          >
+                            <option value="">All {selectedLeadCategory} Leads</option>
+                            {selectedLeadCategory === 'Online' && (
+                              <>
+                                <option value={ENQUIRY_LEADS.WEBSITE}>{ENQUIRY_LEADS.WEBSITE}</option>
+                                <option value={ENQUIRY_LEADS.WHATSAPP}>{ENQUIRY_LEADS.WHATSAPP}</option>
+                                <option value={ENQUIRY_LEADS.FACEBOOK}>{ENQUIRY_LEADS.FACEBOOK}</option>
+                                <option value={ENQUIRY_LEADS.INSTAGRAM}>{ENQUIRY_LEADS.INSTAGRAM}</option>
+                                <option value={ENQUIRY_LEADS.LINKEDIN}>{ENQUIRY_LEADS.LINKEDIN}</option>
+                                <option value={ENQUIRY_LEADS.YELLOW_PAGE}>{ENQUIRY_LEADS.YELLOW_PAGE}</option>
+                                <option value={ENQUIRY_LEADS.MAIL}>{ENQUIRY_LEADS.MAIL}</option>
+                                <option value={ENQUIRY_LEADS.TAWK_TO}>{ENQUIRY_LEADS.TAWK_TO}</option>
+                                <option value={ENQUIRY_LEADS.META_CAMPAIGNS}>{ENQUIRY_LEADS.META_CAMPAIGNS}</option>
+                                <option value={ENQUIRY_LEADS.GOOGLE_CAMPAIGNS}>{ENQUIRY_LEADS.GOOGLE_CAMPAIGNS}</option>
+                              </>
+                            )}
+                            {selectedLeadCategory === 'Offline' && (
+                              <>
+                                <optgroup label="Referral">
+                                  <option value={ENQUIRY_LEADS.OLD_CLIENTS}>{ENQUIRY_LEADS.OLD_CLIENTS}</option>
+                                  <option value={ENQUIRY_LEADS.EXISTING_CLIENTS}>{ENQUIRY_LEADS.EXISTING_CLIENTS}</option>
+                                </optgroup>
+                                <optgroup label="Professional">
+                                  <option value={ENQUIRY_LEADS.DOCTOR}>{ENQUIRY_LEADS.DOCTOR}</option>
+                                  <option value={ENQUIRY_LEADS.MEDICAL}>{ENQUIRY_LEADS.MEDICAL}</option>
+                                  <option value={ENQUIRY_LEADS.NURSE}>{ENQUIRY_LEADS.NURSE}</option>
+                                </optgroup>
+                                <optgroup label="Unprofessional">
+                                  <option value={ENQUIRY_LEADS.COMPOUNDER}>{ENQUIRY_LEADS.COMPOUNDER}</option>
+                                  <option value={ENQUIRY_LEADS.ELECTRICIAN}>{ENQUIRY_LEADS.ELECTRICIAN}</option>
+                                  <option value={ENQUIRY_LEADS.PLUMBER}>{ENQUIRY_LEADS.PLUMBER}</option>
+                                </optgroup>
+                                <optgroup label="Events & Stalls">
+                                  <option value={ENQUIRY_LEADS.CAMP}>{ENQUIRY_LEADS.CAMP}</option>
+                                  <option value={ENQUIRY_LEADS.STALL}>{ENQUIRY_LEADS.STALL}</option>
+                                  <option value={ENQUIRY_LEADS.EVENT}>{ENQUIRY_LEADS.EVENT}</option>
+                                </optgroup>
+                                <optgroup label="Business Partners">
+                                  <option value={ENQUIRY_LEADS.BUSINESS_PARTNERS}>{ENQUIRY_LEADS.BUSINESS_PARTNERS}</option>
+                                </optgroup>
+                              </>
+                            )}
+                          </select>
+                        </div>
+                      )}
+                    </div>
                     )}
-                  </div>
 
                   {/* Search */}
                   <div>

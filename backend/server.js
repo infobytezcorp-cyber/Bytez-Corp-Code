@@ -8,7 +8,7 @@ import http from "http";
 import { Server } from "socket.io";
 
 import connectDB from "./src/config/db.js";
-import { connectSQLiteDB } from "./src/config/sqliteDb.js";
+
 
 import authRoutes from "./src/routes/authRoutes.js";
 import protectedRoutes from "./src/routes/protectedRoutes.js";
@@ -19,10 +19,19 @@ import detailsRoutes from "./src/routes/detailsRoutes.js";
 import enquiryRoutes from "./src/routes/enquiryRoutes.js";
 import callRoutes from "./src/routes/callRoutes.js";
 import agentRoutes from "./src/routes/agentRoutes.js";
+<<<<<<< HEAD
 import nursingRoutes  from "./src/routes/nursingRoutes.js";
 import watchmanRoutes from "./src/routes/watchmanRoutes.js";
 import adminRoutes from "./src/routes/adminRoutes.js";
 import chatRoutes from "./src/routes/chatRoutes.js";
+=======
+import hrRoutes from "./src/routes/hrRoutes.js";
+import tasksRoutes from "./src/routes/tasks.js";
+import twilioRoutes from './src/routes/twilioRoutes.js';
+import whatsAppLeadRoutes from './src/routes/whatsAppLeadRoutes.js';
+import trendsRoutes from './src/routes/trendsRoutes.js';
+
+>>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
 
 import registerChatSocket from "./src/middleware/Chatsocket.js";
 import { startMissedCallAlerts } from "./src/controllers/callController.js";
@@ -95,7 +104,14 @@ app.use((req, res, next) => {
   next();
 });
 
+<<<<<<< HEAD
 app.use(express.json());
+=======
+app.options(/.*/, cors());
+// Increase body-parser limits to allow large base64 documents from Stage 3 uploads.
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // for parsing application/x-www-form-urlencoded
+>>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
 
 app.use(
   express.urlencoded({
@@ -111,6 +127,7 @@ app.use("/api/otp", otpRoutes);
 app.use("/api/visitor", visitorRoutes);
 app.use("/api/userdetails", detailsRoutes);
 app.use("/api/enquiries", enquiryRoutes);
+<<<<<<< HEAD
 app.use("/api/calls", callRoutes);
 app.use("/api/agents", agentRoutes);
 app.use("/api/nursing",  nursingRoutes);
@@ -118,6 +135,16 @@ app.use("/api/watchman", watchmanRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/uploads", express.static("uploads"));
+=======
+app.use("/api/hr", hrRoutes);
+app.use("/api/tasks", tasksRoutes);
+app.use("/api/staff", tasksRoutes); 
+app.use("/api/calls", callRoutes);
+app.use("/api/agents", agentRoutes);
+app.use('/api/twilio', twilioRoutes);
+app.use('/api/whatsappleads', whatsAppLeadRoutes);
+app.use('/api/trends', trendsRoutes);
+>>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
 
 // Start Server
 const startServer = async () => {

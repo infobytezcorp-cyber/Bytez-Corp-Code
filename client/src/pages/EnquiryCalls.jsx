@@ -6,7 +6,16 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchAgents, toggleBreak, forceLogout } from "../features/agentSlice";
 import { fetchCalls, callbackCall } from "../features/callSlice";
+<<<<<<< HEAD
 import Sidebar from "../components/dashboards/visitors/Sidebar";
+=======
+import Sidebar from "../components/dashboards/Sidebar";
+import AgentsPanel from "../components/calls/AgentsPanel";
+import MissedCallsPanel from "../components/calls/MissedCallsPanel";
+import MissedCallDetail from "../components/calls/MissedCallDetail";
+import TimeLogsTab from "../components/calls/TimeLogsTab";
+import CallPanel from "../components/calls/CallPanel";
+>>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
 import AgentBreakLogs from "../components/calls/AgentBreakLogs";
 import MissedCallDetail from "../components/calls/MissedCallDetail";
 import UserCallReport from "../components/calls/UserCallReport";

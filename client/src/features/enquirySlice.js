@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
 // Use ngrok URL or environment variable for API
-const API_URL = import.meta.env.VITE_API_URL || 'https://835a-2406-7400-ff03-c034-88a-740-6b89-fc69.ngrok-free.app';
+const API_URL = import.meta.env.VITE_API_URL || 'https://542d-49-206-116-242.ngrok-free.app';
 
 // Mock data for development
 const mockEnquiryData = [

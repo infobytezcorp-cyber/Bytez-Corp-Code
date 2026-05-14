@@ -10,7 +10,7 @@ const PhoneIcon = ({ className = "w-5 h-5" }) => (
   </svg>
 );
 
-export default function DashboardTab({ agent, activeCall, breakLoading, callLoading, loginTime, onToggleBreak, onEndCall }) {
+export default function DashboardTab({ agent, activeCall, breakLoading, callLoading, loginTime, onToggleBreak, onEndCall, onOpenLeadForm }) {
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
   const isOnBreak = agent?.status === "break";
@@ -241,13 +241,24 @@ export default function DashboardTab({ agent, activeCall, breakLoading, callLoad
                 <p className="text-xs text-blue-400 mt-0.5">{activeCall.type} · Started {formatTime(activeCall.startTime)}</p>
               </div>
             </div>
-            <button
-              onClick={() => onEndCall(activeCall._id)}
-              disabled={callLoading}
-              className="px-6 py-2.5 text-sm font-black text-white bg-red-500 hover:bg-red-600 active:scale-95 rounded-xl transition-all disabled:opacity-50 shadow-md"
-            >
-              {callLoading ? "Ending…" : "🔴 End Call"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (onOpenLeadForm) return onOpenLeadForm(activeCall?.number);
+                  return window.open(`/telecaller/enquiry?agentId=${agent?._id}&agentName=${encodeURIComponent(agent?.name || '')}&phone=${activeCall.number}`, '_blank');
+                }}
+                className="px-4 py-2 text-sm font-bold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700"
+              >
+                Open Lead Form
+              </button>
+              <button
+                onClick={() => onEndCall(activeCall._id)}
+                disabled={callLoading}
+                className="px-6 py-2.5 text-sm font-black text-white bg-red-500 hover:bg-red-600 active:scale-95 rounded-xl transition-all disabled:opacity-50 shadow-md"
+              >
+                {callLoading ? "Ending…" : "🔴 End Call"}
+              </button>
+            </div>
           </div>
         </div>
       ) : (

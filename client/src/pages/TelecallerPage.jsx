@@ -13,6 +13,7 @@ import {
 import socket from "../services/socket";
 import API from "../services/api";
 
+<<<<<<< HEAD
 import DashboardTab      from "../components/telecallerscallpage/DashboardTab";
 import BreakHistoryTab   from "../components/telecallerscallpage/BreakHistoryTab";
 import CallLogsTab       from "../components/telecallerscallpage/CallLogsTab";
@@ -21,6 +22,16 @@ import { formatTimeShort, POLL_INTERVAL_MS } from "../components/telecallerscall
 import { ActiveCallBar, IncomingCallPopup } from "../components/telecallerscallpage/telecallertwillo/Incomingcallpopup";
 import { useTwilio } from "../components/telecallerscallpage/telecallertwillo/Usetwilio";
 import { selectTwilioStatus } from "../features/Twilioslice";
+=======
+import DashboardTab from "../components/telecallerscallpage/DashboardTab";
+import BreakHistoryTab from "../components/telecallerscallpage/BreakHistoryTab";
+import CallLogsTab from "../components/telecallerscallpage/CallLogsTab";
+import MissedCallsTab from "../components/telecallerscallpage/MissedCallsTab";
+import { formatTimeShort } from "../components/telecallerscallpage/Utilities";
+import { POLL_INTERVAL_MS } from "../components/telecallerscallpage/Utilities";
+import LeadForm from "../components/enquiry/leadForm/LeadForm";
+
+>>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
 
 const PhoneIcon = ({ className = "w-4 h-4" }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
@@ -185,6 +196,7 @@ export default function TelecallerPage() {
     useSelector(s => s.myAgent);
   const notifications = useSelector((state) => state.chat.notifications);
 
+<<<<<<< HEAD
   const [activeTab,    setActiveTab]    = useState("dashboard");
   const [collapsed,    setCollapsed]    = useState(false);
   const [now,          setNow]          = useState(new Date());
@@ -196,6 +208,13 @@ export default function TelecallerPage() {
   // ✅ FIX: Once clicked → remember forever (even across calls)
   const [callsEnabled, setCallsEnabled] = useState(false);
   const [incomingRequest, setIncomingRequest] = useState(null);
+=======
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [collapsed, setCollapsed] = useState(false);
+  const [now, setNow] = useState(new Date());
+  const [showLeadForm, setShowLeadForm] = useState(false);
+  const [leadFormPhone, setLeadFormPhone] = useState('');
+>>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -323,9 +342,25 @@ export default function TelecallerPage() {
 
   const tabContent = {
     dashboard: (
+<<<<<<< HEAD
       <DashboardTab agent={agent} activeCall={activeCall} breakLoading={breakLoading}
         callLoading={callLoading} loginTime={loginTime}
         onToggleBreak={handleToggleBreak} onEndCall={handleEndCall} />
+=======
+      <DashboardTab
+        agent={agent}
+        activeCall={activeCall}
+        breakLoading={breakLoading}
+        callLoading={callLoading}
+        loginTime={loginTime}
+        onToggleBreak={handleToggleBreak}
+        onEndCall={handleEndCall}
+        onOpenLeadForm={(phone) => {
+          setLeadFormPhone(phone || activeCall?.number || '');
+          setShowLeadForm(true);
+        }}
+      />
+>>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
     ),
     history: <BreakHistoryTab agent={agent} />,
     calls:   <CallLogsTab agent={agent} />,
@@ -432,6 +467,33 @@ export default function TelecallerPage() {
 
         <div className="flex-1 overflow-y-auto p-6">
           {tabContent[activeTab]}
+
+          {/* Lead Form modal for telecaller */}
+          {showLeadForm && (
+            <div className="fixed inset-0 z-50 flex items-start justify-center p-6 bg-black/40">
+              <div className="w-full max-w-3xl bg-white rounded-2xl shadow-lg overflow-auto max-h-[90vh]">
+                <div className="flex items-center justify-between px-4 py-3 border-b">
+                  <h3 className="font-bold">New Lead (Agent: {agent.name})</h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowLeadForm(false)}
+                      className="px-3 py-1 rounded-md bg-slate-100 hover:bg-slate-200"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <LeadForm
+                    initialAssignedToId={agent?._id}
+                    initialAgentName={agent?.name}
+                    initialPhone={leadFormPhone}
+                    onSaved={() => setShowLeadForm(false)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

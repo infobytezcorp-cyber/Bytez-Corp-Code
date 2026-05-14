@@ -1,8 +1,8 @@
 import React from 'react';
-import EnquiryListContent from '../components/enquiry/EnquiryListContent';
+import EnquiryWithLeadForm from './EnquiryWithLeadForm';
 
 const Enquiry = () => {
-  return <EnquiryListContent />;
+  return <EnquiryWithLeadForm />;
 };
 
 export default Enquiry;

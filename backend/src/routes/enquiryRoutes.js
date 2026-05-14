@@ -1,34 +1,8 @@
 import express from 'express';
-import { Op } from 'sequelize';
 const router = express.Router();
-import Enquiry from '../models/EnquirySQLite.js';
-
-/**
- * ENQUIRY ROUTES DOCUMENTATION
- * =============================
- * 
- * Valid Lead Values:
- * ------------------
- * Online Leads (10):
- *   - Website, Whatsapp, Facebook, Instagram, LinkedIn, Yellow page, Mail, Tawk.to, Meta Campaigns, Google Campaigns
- * 
- * Offline Leads - Referral (2):
- *   - Old clients, Existing clients
- * 
- * Offline Leads - Professional (3):
- *   - Doctor, Medical, Nurse
- * 
- * Offline Leads - Unprofessional (3):
- *   - Compounder, Electrician, Plumber
- * 
- * Offline Leads - Events & Stalls (3):
- *   - Camp, Stall, Event
- * 
- * Offline Leads - Business Partners (1):
- *   - Business partners
- * 
- * Total: 22 lead options across Online and Offline categories
- */
+import Enquiry from '../models/Enquiry.js'; // Ensure this is the Mongoose model
+import Call from '../models/Call.js';
+import { getAadharDocument, getEnquiriesCountByStage } from '../controllers/enquiryController.js';
 
 // Helper: Convert array values to comma-separated strings
 const getStringValue = (value) => {
@@ -41,51 +15,61 @@ const getStringValue = (value) => {
 // 1. GET all enquiries with date range filtering
 router.get('/', async (req, res) => {
   try {
-    const { fromDate, toDate } = req.query;
-    let whereClause = {};
+    const { fromDate, toDate, stage, taskStatus } = req.query;
+    let query = {};
 
-    // Date range filtering
+    if (stage) query.stage = stage;
+    if (taskStatus) query.taskStatus = taskStatus;
+
     if (fromDate || toDate) {
-      const dateFilter = {};
-      
+      query.createdAt = {};
       if (fromDate) {
         const from = new Date(fromDate);
         from.setHours(0, 0, 0, 0);
-        dateFilter[Op.gte] = from;
+        query.createdAt.$gte = from;
       }
-      
       if (toDate) {
         const to = new Date(toDate);
         to.setHours(23, 59, 59, 999);
-        if (dateFilter[Op.gte]) {
-          dateFilter[Op.and] = Op.lte(to);
-        } else {
-          dateFilter[Op.lte] = to;
-        }
+        query.createdAt.$lte = to;
       }
-      
-      whereClause.createdAt = dateFilter;
     }
 
-    const enquiries = await Enquiry.findAll({
-      where: whereClause,
-      order: [['createdAt', 'DESC']],
-    });
-    
-    res.json(enquiries);
+    const enquiries = await Enquiry.find(query).sort({ createdAt: -1 });
+
+    // Enrich each enquiry with the most recent call (if any) matching phone or contact.phone
+    const enriched = await Promise.all(enquiries.map(async (e) => {
+      try {
+        const phone = (e.phone || '').toString().replace(/\D/g, '').replace(/^91/, '');
+        const call = await Call.findOne({
+          $or: [ { number: { $regex: phone ? phone + '$' : '$' } }, { 'contact.phone': { $regex: phone ? phone + '$' : '$' } } ]
+        }).sort({ createdAt: -1 }).populate('agent', 'name');
+
+        const obj = e.toObject ? e.toObject() : { ...e };
+        if (call) {
+          obj.lastCall = call.createdAt || call.startTime || null;
+          obj.lastCallAgent = call.agent ? { _id: call.agent._id, name: call.agent.name } : null;
+        } else {
+          obj.lastCall = null;
+          obj.lastCallAgent = null;
+        }
+        return obj;
+      } catch (err) {
+        return e;
+      }
+    }));
+
+    res.json(enriched);
   } catch (err) {
     console.error('❌ Get All Enquiries Error:', err.message);
     res.status(500).json({ message: err.message });
   }
 });
 
-// 2. GET enquiries by client ID (all history)
+// 2. GET enquiries by client ID
 router.get('/client/:clientId', async (req, res) => {
   try {
-    const enquiries = await Enquiry.findAll({
-      where: { clientId: req.params.clientId },
-      order: [['createdAt', 'DESC']],
-    });
+    const enquiries = await Enquiry.find({ clientId: req.params.clientId }).sort({ createdAt: -1 });
     
     if (enquiries.length === 0) {
       return res.status(404).json({ message: 'No enquiries found for this client' });
@@ -98,10 +82,13 @@ router.get('/client/:clientId', async (req, res) => {
   }
 });
 
-// 3. GET single enquiry by ID
+// 2.5. GET enquiry counts by stage for dashboard
+router.get('/counts', getEnquiriesCountByStage);
+
+// 3. GET single enquiry by MongoDB ID
 router.get('/:id', async (req, res) => {
   try {
-    const enquiry = await Enquiry.findByPk(req.params.id);
+    const enquiry = await Enquiry.findById(req.params.id);
     if (!enquiry) {
       return res.status(404).json({ message: 'Enquiry not found' });
     }
@@ -112,48 +99,46 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 4. CREATE new enquiry entry (Google Form integration)
-// Each submission creates a NEW ROW (multiple rows per client)
-// Same user (phone+aadhaar) reuses the SAME clientId
+// 4. CREATE new enquiry
 router.post('/', async (req, res) => {
   try {
     let clientId = null;
     const { phone, aadhaar, elderName, stage } = req.body;
 
-    // 1. Look for existing client to link rows
+    // Look for existing client
     if (phone && aadhaar) {
-      const existingClient = await Enquiry.findOne({
-        where: { phone, aadhaar },
-        order: [['createdAt', 'DESC']]
-      });
-
+      const existingClient = await Enquiry.findOne({ phone, aadhaar }).sort({ createdAt: -1 });
       if (existingClient) {
         clientId = existingClient.clientId;
       }
     }
 
-    // 2. Always create a NEW row for every submission
-    const newEntry = await Enquiry.create({
-      clientId: clientId, // Hook handles generation if this is null
+    const newEntry = new Enquiry({
+      clientId: clientId, // Mongoose hook handles generation if null
       elderName: elderName,
       familyName: req.body.familyName || null,
       phone: phone,
       aadhaar: aadhaar || null,
       email: req.body.email || null,
+      personalDetails: req.body.personalDetails || {},
+      stageDetails: req.body.stageDetails || {},
+      assignedTo: req.body.assignedTo || null,
+      assignedAt: req.body.assignedAt ? new Date(req.body.assignedAt) : null,
       careType: getStringValue(req.body.careType),
       lead: getStringValue(req.body.source || req.body.lead),
       stage: stage || 'New Enquiry',
+      notes: req.body.notes || '',
       timeline: [{ 
         event: `Stage Recorded: ${stage || 'New Enquiry'}`, 
         date: new Date().toISOString() 
-      }],
+      }, ...(req.body.timeline || [])],
     });
 
-    console.log(`✅ New Row Created | Client: ${newEntry.clientId} | Stage: ${newEntry.stage}`);
+    await newEntry.save();
+    console.log(`✅ New MongoDB Row Created | Client: ${newEntry.clientId}`);
     res.status(201).json(newEntry);
-
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    console.error('❌ Create Error:', err.message);
     res.status(400).json({ message: err.message });
   }
 });
@@ -161,14 +146,48 @@ router.post('/', async (req, res) => {
 // 5. UPDATE enquiry by ID
 router.put('/:id', async (req, res) => {
   try {
-    const enquiry = await Enquiry.findByPk(req.params.id);
-    if (!enquiry) {
+    const updates = { ...req.body };
+    const aadharDoc =
+      updates['stageDetails.stage3']?.aadharDocument ||
+      updates.stageDetails?.stage3?.aadharDocument;
+
+    if (aadharDoc?.data) {
+      const base64String = typeof aadharDoc.data === 'string' && aadharDoc.data.includes(',')
+        ? aadharDoc.data.split(',')[1]
+        : aadharDoc.data;
+      const binaryData = Buffer.from(base64String, 'base64');
+
+      updates.documents = {
+        ...(updates.documents || {}),
+        aadharDocument: {
+          fileName: aadharDoc.name || aadharDoc.fileName || 'aadhar-document',
+          fileSize: aadharDoc.size || binaryData.length,
+          fileType: aadharDoc.type || aadharDoc.fileType || 'application/octet-stream',
+          data: binaryData,
+          uploadedAt: new Date(),
+        },
+      };
+
+      if (updates['stageDetails.stage3']) {
+        delete updates['stageDetails.stage3'].aadharDocument;
+      }
+      if (updates.stageDetails?.stage3) {
+        delete updates.stageDetails.stage3.aadharDocument;
+      }
+    }
+
+    const updatedEnquiry = await Enquiry.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { returnDocument: "after", runValidators: true }
+    );
+
+    if (!updatedEnquiry) {
       return res.status(404).json({ message: 'Enquiry not found' });
     }
 
-    await enquiry.update(req.body);
-    console.log('✅ Enquiry Updated. ID:', enquiry.id);
-    res.json(enquiry);
+    console.log('✅ Enquiry Updated in MongoDB:', updatedEnquiry._id);
+    res.json(updatedEnquiry);
   } catch (err) {
     console.error('❌ Update Error:', err.message);
     res.status(400).json({ message: err.message });
@@ -178,13 +197,11 @@ router.put('/:id', async (req, res) => {
 // 6. DELETE enquiry by ID
 router.delete('/:id', async (req, res) => {
   try {
-    const enquiry = await Enquiry.findByPk(req.params.id);
-    if (!enquiry) {
+    const deletedEnquiry = await Enquiry.findByIdAndDelete(req.params.id);
+    if (!deletedEnquiry) {
       return res.status(404).json({ message: 'Enquiry not found' });
     }
-
-    await enquiry.destroy();
-    console.log('✅ Enquiry Deleted. ID:', req.params.id);
+    console.log('✅ Enquiry Deleted from MongoDB:', req.params.id);
     res.json({ message: 'Enquiry deleted successfully' });
   } catch (err) {
     console.error('❌ Delete Error:', err.message);
@@ -192,45 +209,153 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// 7. FILTER enquiries by stage, lead, care type, and date
+// 7. FILTER enquiries
 router.post('/filter', async (req, res) => {
   try {
     const { stage, lead, careType, fromDate, toDate } = req.body;
-    let whereClause = {};
+    let query = {};
 
-    if (stage) whereClause.stage = stage;
-    if (lead) whereClause.lead = lead;
-    if (careType) whereClause.careType = careType;
+    if (stage) query.stage = stage;
+    if (lead) query.lead = lead;
+    if (careType) query.careType = careType;
 
-    // Date range filtering
     if (fromDate || toDate) {
-      const dateFilter = {};
-      
+      query.createdAt = {};
       if (fromDate) {
         const from = new Date(fromDate);
         from.setHours(0, 0, 0, 0);
-        dateFilter[Op.gte] = from;
+        query.createdAt.$gte = from;
       }
-      
       if (toDate) {
         const to = new Date(toDate);
         to.setHours(23, 59, 59, 999);
-        dateFilter[Op.lte] = to;
+        query.createdAt.$lte = to;
       }
-      
-      whereClause.createdAt = dateFilter;
     }
 
-    const enquiries = await Enquiry.findAll({
-      where: whereClause,
-      order: [['createdAt', 'DESC']],
-    });
-
+    const enquiries = await Enquiry.find(query).sort({ createdAt: -1 });
     res.json(enquiries);
   } catch (err) {
     console.error('❌ Filter Error:', err.message);
     res.status(500).json({ message: err.message });
   }
 });
+
+// 8. ASSIGN task to staff
+router.post('/:id/assign', async (req, res) => {
+  try {
+    const { staffId, durationHours, duration } = req.body;
+
+    if (!staffId) {
+      return res.status(400).json({ message: 'staffId is required' });
+    }
+
+    const busyAssignment = await Enquiry.findOne({
+      _id: { $ne: req.params.id },
+      assignedTo: staffId,
+      taskStatus: 'In Progress',
+    }).select('clientId elderName careType');
+
+    if (busyAssignment) {
+      return res.status(409).json({
+        message: 'This staff member is already assigned to an active task',
+        activeTask: busyAssignment,
+      });
+    }
+    
+    const updatedEnquiry = await Enquiry.findByIdAndUpdate(
+      req.params.id,
+      { 
+        assignedTo: staffId,
+        taskStatus: 'In Progress',
+        assignedAt: new Date(),
+        durationHours: durationHours,
+        duration: duration || ''
+      },
+      { returnDocument: "after", runValidators: true }
+    );
+
+    if (!updatedEnquiry) {
+      return res.status(404).json({ message: 'Enquiry not found' });
+    }
+
+    console.log('✅ Task Assigned:', updatedEnquiry._id);
+    res.json(updatedEnquiry);
+  } catch (err) {
+    console.error('❌ Assign Error:', err.message);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// 9. COMPLETE task
+router.post('/:id/complete', async (req, res) => {
+  try {
+    const updatedEnquiry = await Enquiry.findByIdAndUpdate(
+      req.params.id,
+      { 
+        taskStatus: 'Completed',
+        completedAt: new Date()
+      },
+      { returnDocument: "after", runValidators: true }
+    );
+
+    if (!updatedEnquiry) {
+      return res.status(404).json({ message: 'Enquiry not found' });
+    }
+
+    console.log('✅ Task Completed:', updatedEnquiry._id);
+    res.json(updatedEnquiry);
+  } catch (err) {
+    console.error('❌ Complete Error:', err.message);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// 10. REOPEN task
+router.post('/:id/reopen', async (req, res) => {
+  try {
+    const existingEnquiry = await Enquiry.findById(req.params.id);
+    if (!existingEnquiry) {
+      return res.status(404).json({ message: 'Enquiry not found' });
+    }
+
+    if (existingEnquiry.assignedTo) {
+      const busyAssignment = await Enquiry.findOne({
+        _id: { $ne: req.params.id },
+        assignedTo: existingEnquiry.assignedTo,
+        taskStatus: 'In Progress',
+      }).select('clientId elderName careType');
+
+      if (busyAssignment) {
+        return res.status(409).json({
+          message: 'This staff member is already assigned to an active task',
+          activeTask: busyAssignment,
+        });
+      }
+    }
+
+    const updatedEnquiry = await Enquiry.findByIdAndUpdate(
+      req.params.id,
+      { 
+        taskStatus: 'In Progress',
+        reopenedAt: new Date()
+      },
+      { returnDocument: "after" }
+    );
+
+    if (!updatedEnquiry) {
+      return res.status(404).json({ message: 'Enquiry not found' });
+    }
+
+    console.log('✅ Task Reopened:', updatedEnquiry._id);
+    res.json(updatedEnquiry);
+  } catch (err) {
+    console.error('❌ Reopen Error:', err.message);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// 17. GET Aadhar Document
+router.get('/:id/document/aadhar', getAadharDocument);
 
 export default router;

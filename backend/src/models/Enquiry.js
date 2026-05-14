@@ -1,146 +1,159 @@
-// import mongoose from "mongoose";
-
-// const EnquirySchema = new mongoose.Schema({
-//   elderName: { 
-//     type: String, 
-//     required: [true, 'Elder Name is required'] 
-//   },
-//   familyName: { 
-//     type: String 
-//   },
-//   phone: { 
-//     type: String, 
-//     required: [true, 'Phone number is required'] 
-//   },
-//   email: { 
-//     type: String 
-//   },
-//   stage: { 
-//     type: String, 
-//     enum: ['New Enquiry', 'Contact', 'Pitching', 'Enrolled'], 
-//     default: 'New Enquiry' 
-//   },
-//   source: { 
-//     type: String, 
-//     enum: ['Website', 'Telecaller', 'Tawk.to', 'Referral'], 
-//     default: 'Website' 
-//   },
-//   careType: { 
-//     type: String,
-//     enum: [
-//       'Home Nursing 12/7',
-//       'Emergency Nurse 12/7',
-//       'Old Age Home',
-//       'Doctor @ Home',
-//       'Ambulance Service',
-//       'Home Sample Collection',
-//       'Patient Care Attender 12/7',
-//       'Cook 12/7',
-//       'Diploma Nurse 24/7',
-//       'Diploma Nurse 12/7',
-//       'Baby Sitter 12/7',
-//       'Patient Care Attender 24/7',
-//       'Home Nursing 24/7',
-//       'Emergency Nurse 24/7',
-//       'Elder Care Service 24/7',
-//       'Cook 24/7',
-//       'Maid Staff 12/7',
-//       'Maid Staff 24/7',
-//       null, 
-//       ''
-//     ],
-//     default: ''
-//   },
-//   timeline: [
-//     {
-//       event: { type: String },
-//       date: { type: Date, default: Date.now }
-//     }
-//   ],
-//   createdAt: { 
-//     type: Date, 
-//     default: Date.now 
-//   }
-// });
-
-// export default  mongoose.model('Enquiry', EnquirySchema);
-
-
 import mongoose from "mongoose";
 
-const EnquirySchema = new mongoose.Schema({
-  // Automatic-ah generate aaga pora Unique ID
-  clientId: {
-    type: String,
-    unique: true
+const enquirySchema = new mongoose.Schema(
+  {
+    clientId: {
+      type: String,
+      unique: false,
+      sparse: true,
+      index: true,
+    },
+    elderName: {
+      type: String,
+      required: [true, "Elder Name is required"], 
+      trim: true,
+    },
+    familyName: {
+      type: String,
+      trim: true,
+    },
+    phone: {
+      type: String,
+      required: [true, "Phone number is required"],
+      index: true,
+    },
+    aadhaar: {
+      type: String,
+      validate: {
+        validator: function (value) {
+          return !value || value.length === 12;
+        },
+        message: "Aadhar must be 12 digits",
+      },
+    },
+    email: {
+      type: String,
+      lowercase: true,
+      trim: true,
+    },
+    personalDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    stageDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    stage: {
+      type: String,
+      default: "New Enquiry",
+    },
+    lead: {
+      type: String,
+      default: "",
+    },
+    careType: {
+      type: String,
+      default: "",
+    },
+    contact: {
+      type: String,
+      default: "",
+    },
+    // Task fields for assignment and tracking
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+      default: null,
+    },
+    assignedAt: {
+      type: Date,
+    },
+    taskDurationHours: {
+      type: Number,
+    },
+    duration: {
+      type: String,
+      default: "",
+    },
+    taskStatus: {
+      type: String,
+      enum: ["New", "Unassigned", "In Progress", "Completed"],
+      default: "New",
+    },
+    completedAt: {
+      type: Date,
+    },
+    timeline: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
+    notes: {
+      type: String,
+      default: "",
+    },
+    documents: {
+      aadharDocument: {
+        fileName: {
+          type: String,
+          default: null,
+        },
+        fileSize: {
+          type: Number,
+          default: null,
+        },
+        fileType: {
+          type: String,
+          default: null,
+        },
+        data: {
+          type: Buffer, // BSON Binary Data Type
+          default: null,
+        },
+        uploadedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+    },
   },
-  elderName: { 
-    type: String, 
-    required: [true, 'Elder Name is required'] 
-  },
-  familyName: { type: String },
-  phone: { 
-    type: String, 
-    required: [true, 'Phone number is required'] 
-  },
-  email: { type: String },
-  stage: { 
-    type: String, 
-    enum: ['New Enquiry', 'Contact', 'Pitching', 'Enrolled'], 
-    default: 'New Enquiry' 
-  },
-  lead: { 
-    type: String, 
-    enum: [
-      // Online leads
-      'Website', 'Whatsapp', 'Facebook', 'Instagram', 'LinkedIn', 'Yellow page', 'Mail',
-      'Tawk.to', 'Meta Campaigns', 'Google Campaigns',
-      // Offline - Referral
-      'Old clients', 'Existing clients',
-      // Offline - Professional
-      'Doctor', 'Medical', 'Nurse',
-      // Offline - Unprofessional
-      'Compounder', 'Electrician', 'Plumber',
-      // Offline - Events & Stalls
-      'Camp', 'Stall', 'Event',
-      // Offline - Business Partners
-      'Business partners'
-    ],
-    default: 'Website' 
-  },
-  careType: { 
-    type: String,
-    default: ''
-  },
-  timeline: [
-    {
-      event: { type: String },
-      date: { type: Date, default: Date.now }
-    }
-  ],
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
+  {
+    timestamps: true,
+    collection: "enquiries",
+  }
+);
+
+// Pre-save hook to auto-generate clientId (deterministic based on phone + aadhaar)
+// enquirySchema.pre("save", async function (next) {
+//   // Only generate a hash if clientId wasn't already provided by the controller
+//   if (!this.clientId) {
+//     const crypto = await import("crypto");
+//     const baseString = `${this.phone}${this.aadhaar || ""}`;
+//     const hash = crypto
+//       .createHash("sha256")
+//       .update(baseString)
+//       .digest("hex")
+//       .substring(0, 8)
+//       .toUpperCase();
+//     this.clientId = `ENQ${hash}`;
+//   }
+//   next();
+// });
+enquirySchema.pre("save", async function () {
+  if (!this.clientId) {
+    const crypto = await import("crypto");
+    const baseString = `${this.phone}${this.aadhaar || ""}`;
+    const hash = crypto
+      .createHash("sha256")
+      .update(baseString)
+      .digest("hex")
+      .substring(0, 8)
+      .toUpperCase();
+    
+    this.clientId = `ENQ${hash}`;
+    console.log(`✨ Generated ClientID: ${this.clientId}`);
   }
 });
 
-// Auto-generate unique sequential Client ID
-EnquirySchema.pre('save', async function (next) {
-  if (this.isNew && !this.clientId) {
-    try {
-      // Simple approach: use timestamp + random
-      const timestamp = Date.now().toString().slice(-5);
-      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-      this.clientId = `ENQ${timestamp}${random}`;
-      console.log(`✅ Generated ClientID: ${this.clientId}`);
-      next();
-    } catch (error) {
-      console.error('❌ ClientId generation error:', error.message);
-      next(error);
-    }
-  } else {
-    next();
-  }
-});
-
-export default mongoose.model('Enquiry', EnquirySchema);
+const Enquiry = mongoose.model("Enquiry", enquirySchema);
+export default Enquiry;
