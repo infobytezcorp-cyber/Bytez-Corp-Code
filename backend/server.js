@@ -23,9 +23,11 @@ import tasksRoutes from "./src/routes/tasks.js";
 import twilioRoutes from './src/routes/twilioRoutes.js';
 import whatsAppLeadRoutes from './src/routes/whatsAppLeadRoutes.js';
 import trendsRoutes from './src/routes/trendsRoutes.js';
-
-
-// ✅ NEW: missed call alert scheduler
+import recruiterRoutes from './src/routes/recruiterRoutes.js';
+import recruiterFormRoutes from './src/routes/recruiterFormRoutes.js';
+import recruiterHrRoutes from './src/routes/recruiterHrRoutes.js';
+import workUpdateRoutes from './src/routes/workUpdateRoutes.js';
+import initCronJobs from './src/services/cronJobs.js';
 import { startMissedCallAlerts } from "./src/controllers/callController.js";
 
 const app = express();
@@ -73,6 +75,10 @@ app.use("/api/agents", agentRoutes);
 app.use('/api/twilio', twilioRoutes);
 app.use('/api/whatsappleads', whatsAppLeadRoutes);
 app.use('/api/trends', trendsRoutes);
+app.use('/api/recruiter', recruiterRoutes);
+app.use('/api/recruiters', recruiterFormRoutes);
+app.use('/api/recruiter-hr', recruiterHrRoutes);
+app.use('/api/workupdates', workUpdateRoutes);
 
 const startServer = async () => {
   try {
@@ -93,6 +99,7 @@ const startServer = async () => {
       startMissedCallAlerts();
       console.log("⏰ Missed call alert scheduler started");
     });
+    initCronJobs();
 
   } catch (error) {
     console.error("Failed to start the server:", error.message);

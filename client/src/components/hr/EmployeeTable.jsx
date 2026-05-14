@@ -89,6 +89,7 @@ export default function EmployeeTable({ employees }) {
               <th className="px-3 py-3">Mobile</th>
               <th className="px-6 py-3">Department</th>
               <th className="px-6 py-3">Service Type</th>
+              {/* <th className="px-6 py-3">HR Candidate</th> */}
               <th className="px-6 py-3">Role</th>
               <th className="px- py-3">Shift</th>
               {/* <th className="px-6 py-3">Status</th> */}
@@ -139,6 +140,16 @@ export default function EmployeeTable({ employees }) {
                   <td className="px-6 py-4 text-xs text-gray-600">
                     {emp.service}
                   </td>
+                  {/* <td className="px-6 py-4">
+                    <div className="text-xs font-semibold text-gray-900">
+                      {emp.recruiterHrName || "—"}
+                    </div>
+                    {emp.recruiterHrId && (
+                      <div className="max-w-[120px] truncate text-[10px] text-gray-500" title={emp.recruiterHrId}>
+                        {emp.recruiterHrId}
+                      </div>
+                    )}
+                  </td> */}
                   <td className="px-6 py-4">
                     <div className="font-semibold text-gray-900">
                       {emp.role}

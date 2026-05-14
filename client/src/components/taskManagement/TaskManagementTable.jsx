@@ -300,10 +300,6 @@ import { useDispatch } from "react-redux";
 import { CheckCircle, Loader, CalendarDays } from "lucide-react"; 
 import { assignTask, completeTask, reopenTask } from "../../features/taskManagementSlice";
 import toast from "react-hot-toast";
-import axios from "axios";
-
-const API = import.meta.env.VITE_API_URL;
-axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
 
 export default function TaskManagementTable({ 
   enquiries = [], 
@@ -365,6 +361,7 @@ export default function TaskManagementTable({
   const openAssignModal  = (enquiry) => { setSelectedEnquiry(enquiry); setIsModalOpen(true); };
   const closeModal       = () => { setIsModalOpen(false); setSelectedEnquiry(null); };
   const getAssignedStaff = (staffId) => staffList.find((s) => s._id === staffId);
+  const normalizeStatus  = (status) => String(status || "").trim().toLowerCase();
 
   // ✅ Pending view-in don't have a 2 cells
   const isPending   = taskView === "unassigned";
@@ -403,7 +400,8 @@ export default function TaskManagementTable({
           <tbody>
             {enquiries.map((enquiry) => {
               const assignedStaff = getAssignedStaff(enquiry.assignedTo);
-              const isCompleted   = enquiry.taskStatus === "Completed";
+              const status        = normalizeStatus(enquiry.taskStatus);
+              const isCompleted   = status === "completed";
               const isActive      = enquiry.assignedTo && !isCompleted;
               const isUnassigned  = !enquiry.assignedTo && !isCompleted;
 

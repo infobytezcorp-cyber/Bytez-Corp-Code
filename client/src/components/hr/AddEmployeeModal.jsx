@@ -6,36 +6,50 @@ import {
   HR_DEPT_CONFIG,
 } from "../../features/hrSlice";
 
-export default function AddEmployeeModal() {
+const onlyDigits = (value) => String(value || "").replace(/\D/g, "");
+
+const buildInitialFormData = (initialHrCandidate = null) => ({
+  name: initialHrCandidate?.name || "",
+  mobileCountryCode: "+91",
+  mobile: onlyDigits(initialHrCandidate?.contactNumber).slice(-10),
+  dept: "homecare",
+  service: "Home Nursing",
+  role: initialHrCandidate?.domain || "",
+  doj: "",
+  dob: "",
+  gender: "Male",
+  blood: "A+",
+  email: "",
+  aadhaar: onlyDigits(initialHrCandidate?.aadhaarNumber).slice(0, 12),
+  address: initialHrCandidate?.location || "",
+  salary: "",
+  manager: "",
+  emptype: "Full-Time",
+  shift: "Day (9am-6pm)",
+  qual: initialHrCandidate?.qualification || "",
+  emname: initialHrCandidate?.guardianName || "",
+  emmobileCountryCode: "+91",
+  emmobile: onlyDigits(initialHrCandidate?.guardianContactNumber).slice(-10),
+  emrel: initialHrCandidate?.guardianName ? "Guardian" : "Spouse",
+  notes: "",
+  recruiterHrId: initialHrCandidate?._id || "",
+  recruiterHrName: initialHrCandidate?.name || "",
+});
+
+export default function AddEmployeeModal({ initialHrCandidate = null, onClose } = {}) {
   const dispatch = useDispatch();
   const employees = useSelector((state) => state.hr.employees);
-  const [formData, setFormData] = useState({
-    name: "",
-    mobileCountryCode: "+91",
-    mobile: "",
-    dept: "homecare",
-    service: "Home Nursing", // Default service, will be set properly on mount
-    role: "",
-    doj: "",
-    dob: "",
-    gender: "Male",
-    blood: "A+",
-    email: "",
-    aadhaar: "",
-    address: "",
-    salary: "",
-    manager: "",
-    emptype: "Full-Time",
-    shift: "Day (9am–6pm)",
-    qual: "",
-    emname: "",
-    emmobileCountryCode: "+91",
-    emmobile: "",
-    emrel: "Spouse",
-    notes: "",
-  });
+  const [formData, setFormData] = useState(() => buildInitialFormData(initialHrCandidate));
 
   const [errors, setErrors] = useState({});
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+      return;
+    }
+    dispatch(closeAddModal());
+  };
 
   const normalizeDigits = (value) => String(value).replace(/\D/g, '');
 
@@ -142,6 +156,8 @@ export default function AddEmployeeModal() {
 
     const newEmployee = {
       ...restFormData,
+      recruiterHrId: formData.recruiterHrId || initialHrCandidate?._id || "",
+      recruiterHrName: formData.recruiterHrName || initialHrCandidate?.name || "",
       mobile: formData.mobile ? `${mobileCountryCode}${formData.mobile}` : "",
       emmobile: formData.emmobile ? `${emmobileCountryCode}${formData.emmobile}` : "",
       status: "Present",
@@ -157,7 +173,7 @@ export default function AddEmployeeModal() {
         return;
       }
       
-      dispatch(closeAddModal());
+      handleClose();
       
       // Show success toast
       const toast = document.createElement("div");
@@ -186,7 +202,7 @@ export default function AddEmployeeModal() {
             <h2 className="text-xl font-bold text-gray-900">Add New Employee</h2>
           </div>
           <button
-            onClick={() => dispatch(closeAddModal())}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 text-2xl hover:bg-gray-100 w-8 h-8 rounded flex items-center justify-center"
           >
             ✕
@@ -195,6 +211,37 @@ export default function AddEmployeeModal() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* HR Details */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 pb-2 border-b border-gray-200">
+              HR Details
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>HR ID</label>
+                <input
+                  type="text"
+                  name="recruiterHrId"
+                  value={formData.recruiterHrId}
+                  onChange={handleInputChange}
+                  placeholder="Enter HR ID"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>HR Name</label>
+                <input
+                  type="text"
+                  name="recruiterHrName"
+                  value={formData.recruiterHrName}
+                  onChange={handleInputChange}
+                  placeholder="Enter HR name"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Personal Information */}
           <div>
             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 pb-2 border-b border-gray-200">
@@ -581,7 +628,7 @@ export default function AddEmployeeModal() {
           <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
             <button
               type="button"
-              onClick={() => dispatch(closeAddModal())}
+              onClick={handleClose}
               className="px-4 py-2 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition"
             >
               Cancel

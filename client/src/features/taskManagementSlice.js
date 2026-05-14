@@ -1,17 +1,12 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
-
-const API = import.meta.env.VITE_API_URL;
-axios.defaults.headers.common["ngrok-skip-browser-warning"] = "true";
+import API from "../services/api";
 
 // Thunks
 export const fetchEnrolledEnquiries = createAsyncThunk(
   "taskManagement/fetchEnrolledEnquiries",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
-        `${API}/api/enquiries?stage=Enrolled`
-      );
+      const response = await API.get("/enquiries?stage=Enrolled");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || error.message);
@@ -24,7 +19,7 @@ export const fetchStaffList = createAsyncThunk(
   "taskManagement/fetchStaffList",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${API}/api/hr`);
+      const response = await API.get("/hr");
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || error.message);
@@ -32,27 +27,11 @@ export const fetchStaffList = createAsyncThunk(
   }
 );
 
-// export const assignTask = createAsyncThunk(
-//   'taskManagement/assignTask',
-//   async ({ enquiryId, staffId, durationHours }, { rejectWithValue }) => {
-//     try {
-//       const response = await axios.post(`${API}/api/enquiries/${enquiryId}/assign`, { 
-//         staffId, 
-//         durationHours  // ← duration string missing!
-//       });
-//       return response.data;
-//     } catch (err) {
-//       return rejectWithValue(err.response?.data?.message || err.message);
-//     }
-//   }
-// );
-
-
 export const assignTask = createAsyncThunk(
   'taskManagement/assignTask',
   async ({ enquiryId, staffId, durationHours, duration }, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API}/api/enquiries/${enquiryId}/assign`, {
+      const response = await API.post(`/enquiries/${enquiryId}/assign`, {
         staffId,
         durationHours,
         duration,
@@ -68,7 +47,7 @@ export const completeTask = createAsyncThunk(
   'taskManagement/completeTask',
   async ({ enquiryId }, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API}/api/enquiries/${enquiryId}/complete`);
+      const response = await API.post(`/enquiries/${enquiryId}/complete`);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
@@ -80,7 +59,7 @@ export const reopenTask = createAsyncThunk(
   'taskManagement/reopenTask',
   async ({ enquiryId }, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API}/api/enquiries/${enquiryId}/reopen`);
+      const response = await API.post(`/enquiries/${enquiryId}/reopen`);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);

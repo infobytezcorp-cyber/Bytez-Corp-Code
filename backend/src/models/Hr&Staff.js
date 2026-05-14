@@ -12,6 +12,10 @@ const EmployeeSchema = new mongoose.Schema({
   qual: { type: String },
   address: { type: String, required: true },
 
+  // Linked recruiter HR candidate
+  recruiterHrId: { type: String },
+  recruiterHrName: { type: String },
+
   // Employment Details
   id: { type: String, unique: true, required: true }, // Automatic-ah generate aagum
   dept: { type: String, required: true },
@@ -37,4 +41,8 @@ const EmployeeSchema = new mongoose.Schema({
   
 }, { timestamps: true });
 
-export default mongoose.models.Employee || mongoose.model('Employee', EmployeeSchema);
+if (mongoose.models.Employee) {
+  delete mongoose.models.Employee;
+}
+
+export default mongoose.model('Employee', EmployeeSchema);

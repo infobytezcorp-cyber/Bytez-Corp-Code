@@ -1,8 +1,22 @@
 import express from 'express';
+import mongoose from 'mongoose';
 const router = express.Router();
 import Enquiry from '../models/Enquiry.js'; // Ensure this is the Mongoose model
+import Employee from '../models/Hr&Staff.js';
 import Call from '../models/Call.js';
 import { getAadharDocument, getEnquiriesCountByStage } from '../controllers/enquiryController.js';
+
+const resolveEmployeeReference = async (staffId) => {
+  if (!staffId) return null;
+  const trimmed = String(staffId).trim();
+
+  if (mongoose.Types.ObjectId.isValid(trimmed)) {
+    const emp = await Employee.findById(trimmed);
+    if (emp) return emp;
+  }
+
+  return await Employee.findOne({ id: trimmed });
+};
 
 // Helper: Convert array values to comma-separated strings
 const getStringValue = (value) => {
@@ -250,9 +264,14 @@ router.post('/:id/assign', async (req, res) => {
       return res.status(400).json({ message: 'staffId is required' });
     }
 
+    const employee = await resolveEmployeeReference(staffId);
+    if (!employee) {
+      return res.status(404).json({ message: 'Staff member not found' });
+    }
+
     const busyAssignment = await Enquiry.findOne({
       _id: { $ne: req.params.id },
-      assignedTo: staffId,
+      assignedTo: employee._id,
       taskStatus: 'In Progress',
     }).select('clientId elderName careType');
 
@@ -266,7 +285,7 @@ router.post('/:id/assign', async (req, res) => {
     const updatedEnquiry = await Enquiry.findByIdAndUpdate(
       req.params.id,
       { 
-        assignedTo: staffId,
+        assignedTo: employee._id,
         taskStatus: 'In Progress',
         assignedAt: new Date(),
         durationHours: durationHours,

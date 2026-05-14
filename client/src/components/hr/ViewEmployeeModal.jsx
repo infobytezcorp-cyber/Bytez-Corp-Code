@@ -253,6 +253,8 @@ export default function ViewEmployeeModal() {
 
           <InfoGrid title="Employment Details">
             <InfoCell label="Employee ID" name="id" value={emp.id} />
+            <InfoCell label="Selected HR ID" name="recruiterHrId" value={editForm.recruiterHrId || emp.recruiterHrId || ""} />
+            <InfoCell label="Selected HR Name" name="recruiterHrName" value={editForm.recruiterHrName || emp.recruiterHrName || ""} />
             <InfoCell label="Date of Joining" name="doj" type="date" value={editForm.doj || emp.doj || ""} />
             <InfoCell
               label="Department"
@@ -267,6 +269,13 @@ export default function ViewEmployeeModal() {
             <InfoCell label="Reporting Manager" name="manager" value={editForm.manager || emp.manager || ""} />
             <InfoCell label="Today's Status" name="status" value={editForm.status || emp.status || ""} />
           </InfoGrid>
+
+          {emp.recruiterHrId && (
+            <InfoGrid title="Selected HR Candidate Details">
+              <InfoCell label="HR ID" name="recruiterHrId" value={editForm.recruiterHrId || emp.recruiterHrId || ""} />
+              <InfoCell label="HR Name" name="recruiterHrName" value={editForm.recruiterHrName || emp.recruiterHrName || ""} />
+            </InfoGrid>
+          )}
 
           <InfoGrid title="Emergency Contact">
             <InfoCell label="Contact Name" name="emname" value={editForm.emname || emp.emname || ""} />

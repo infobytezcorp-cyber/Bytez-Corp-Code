@@ -185,20 +185,23 @@ export default function TaskManagement() {
     "Elder Care Service 24/7": "healthcare"
   };
 
+  const normalizeStatus = (status) => String(status || "").trim().toLowerCase();
+
   // 1. Double Filter: View (Assigned/Unassigned) + Department (Home/Health)
   const filteredEnquiries = useMemo(() => {
     return enrolledEnquiries.filter(enq => {
       // Check Department Match
       const deptMatch = activeDept === "all" || careToDeptMap[enq.careType] === activeDept;
-      
+      const status = normalizeStatus(enq.taskStatus);
+
       // Check Task View Match
       let viewMatch = false;
       if (taskView === "unassigned") {
-        viewMatch = !enq.assignedTo && enq.taskStatus !== "Completed";
+        viewMatch = !enq.assignedTo && status !== "completed";
       } else if (taskView === "active") {
-        viewMatch = enq.assignedTo && enq.taskStatus === "In Progress";
+        viewMatch = enq.assignedTo && status === "in progress";
       } else if (taskView === "completed") {
-        viewMatch = enq.taskStatus === "Completed";
+        viewMatch = status === "completed";
       }
 
       return deptMatch && viewMatch;

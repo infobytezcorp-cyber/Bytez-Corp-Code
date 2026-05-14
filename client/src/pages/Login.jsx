@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../utils/toast"; // 👈 import showToast
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export default function Login() {
     const [email, setEmail] = useState("");
@@ -28,7 +29,7 @@ export default function Login() {
         }
         try {
             const res = await axios.post(
-                "http://localhost:8000/api/auth/login",
+                `${API_URL}/api/auth/login`,
                 { email, password }
             );
 
@@ -45,7 +46,9 @@ export default function Login() {
             else navigate("/user");
 
         } catch (err) {
-            showToast(err.response?.data || "Login failed");
+            const message = err.response?.data?.message || err.response?.data || err.message || "Login failed";
+            console.error("Login error:", err);
+            showToast(message, "error");
         }
     };
 
@@ -88,6 +91,7 @@ export default function Login() {
           <input
             type="email"
             placeholder="Email"
+            value={email}
             className="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -95,16 +99,22 @@ export default function Login() {
           <input
             type="password"
             placeholder="Password"
+            value={password}
             className="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             onChange={(e) => setPassword(e.target.value)}
           />
 
           <button
+            type="button"
             onClick={login}
             className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-300 shadow-md"
           >
             Login
           </button>
+
+          <p className="mt-4 text-sm text-gray-600 text-center">
+            Staff member? <span onClick={() => navigate("/staff-portal")} className="text-blue-600 cursor-pointer font-medium">Use Staff Portal</span>
+          </p>
 
           {/* <p className="mt-4 text-sm text-gray-600 text-center">
             Don’t have an account?{" "}

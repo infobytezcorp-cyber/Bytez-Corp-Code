@@ -21,7 +21,7 @@ export default function Register({ onClose }) {
 
     try {
       setLoading(true);
-      await axios.post("http://localhost:8000/api/auth/register", form);
+      await axios.post(`${API_URL}/api/auth/register`, form);
       alert("User created successfully ✅");
       onClose && onClose();
     } catch (err) {

@@ -19,6 +19,15 @@ const regexDigits = (digits) => {
 // @desc    Add new employee with Duplicate Check & Auto-ID
 router.post('/', async (req, res) => {
   try {
+    const employeePayload = {
+      ...req.body,
+      recruiterHrId: req.body.recruiterHrId || req.body.hrId || req.body.selectedHrId || "",
+      recruiterHrName: req.body.recruiterHrName || req.body.hrName || req.body.selectedHrName || "",
+    };
+    delete employeePayload.recruiterHrContact;
+    delete employeePayload.recruiterHrDomain;
+    delete employeePayload.recruiterHrDetails;
+
     const rawMobile = req.body.mobile || '';
     const rawAadhaar = req.body.aadhaar || '';
     const mobile = normalizeMobile(rawMobile);
@@ -91,7 +100,7 @@ router.post('/', async (req, res) => {
 
     // 4. Create and Save
     const newEmployee = new Employee({ 
-      ...req.body, 
+      ...employeePayload, 
       id: candidateId,
       status: "Present" 
     });

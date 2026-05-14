@@ -1,15 +1,18 @@
 import axios from "axios";
 
 // Compute a normalized base URL that always ends with a single `/api` segment.
-const envUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const rawEnvUrl = import.meta.env.VITE_API_URL;
+const envUrl = typeof rawEnvUrl === "string" && rawEnvUrl.trim() ? rawEnvUrl.trim() : "http://localhost:8000";
 const normalized = (() => {
-  if (import.meta.env.DEV) return "http://localhost:8000/api";
-  const u = String(envUrl).trim();
-  if (u.endsWith("/api")) return u.replace(/\/$/, "");
-  return u.replace(/\/$/, "") + "/api";
+  const u = envUrl.replace(/\/$/, "");
+  if (u.endsWith("/api")) return u;
+  return u + "/api";
 })();
 
-console.log('API baseURL ->', normalized);
+if (!rawEnvUrl || !rawEnvUrl.trim()) {
+  console.warn("VITE_API_URL is not set. Defaulting API base URL to http://localhost:8000/api");
+}
+console.log("API baseURL ->", normalized);
 const API = axios.create({ baseURL: normalized });
 
 // ── Request interceptor — token attach ────────────────────────
