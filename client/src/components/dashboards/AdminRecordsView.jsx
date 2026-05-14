@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../../services/api";
-import { Plus, Edit, Trash2, SlidersHorizontal, Search, X, ChevronDown, BookOpen } from "lucide-react";
+import { Plus, Edit, Trash2, SlidersHorizontal, Search, X, ChevronDown, BookOpen, PackageX } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -19,8 +19,11 @@ const DONOR_RECORD_TYPE_OPTIONS = ["Cash", "Cheque", "Online", "Other"];
 const DONOR_ENQUIRY_TYPE_OPTIONS = ["One-time", "Monthly", "Corporate", "Other"];
 const ASSET_CATEGORY_OPTIONS = ["Furniture", "Electronics", "Vehicle", "Stationery", "Other"];
 const ASSET_CONDITION_OPTIONS = ["New", "Good", "Fair", "Needs Repair"];
-const STOCK_ITEMS = ["Gloves", "Catheter", "Underpad / Rubber Sheet", "Syringe", "Mask", "Other"];
-const STOCK_UNIT_OPTIONS = ["pcs", "kg", "litre", "box"];
+const STOCK_ITEMS = ["Gloves", "Catheter", "Underpad / Rubber Sheet", "Syringe", "Mask", "Medicines", "Other"];
+const COOKING_STOCK_OPTIONS = ["Rice", "Wheat", "Dal", "Cooking Oil", "Spices", "Salt", "Sugar", "Tea Leaves", "Coffee Powder", "Vegetables", "Fruits", "Other"];
+const COOKING_ADDON_OPTIONS = ["None", "Tea", "Coffee", "Sugar", "Milk", "Salt"];
+const STOCK_STATUS_OPTIONS = ["Fresh", "Near Expiry", "Expired", "Low Stock", "Available", "Out of Stock"];
+const STOCK_UNIT_OPTIONS = ["pcs", "kg", "litre", "box", "strip", "bottle", "packet"];
 
 const TABS = [
   { key: "important",        label: "Important Contacts",  icon: "📞", group: "General" },
@@ -52,23 +55,33 @@ const TAB_GROUPS = ["General", "People", "Finance", "Stocks", "Enquiry"];
 
 const STOCK_COLS_AND_FIELDS = {
   columns: [
-    { key: "itemName",     label: "Item" },
-    { key: "unit",         label: "Unit" },
-    { key: "openingStock", label: "Opening" },
-    { key: "received",     label: "Received" },
-    { key: "issued",       label: "Issued" },
-    { key: "closingStock", label: "Closing" },
-    { key: "remarks",      label: "Remarks" },
+    { key: "batchNumber",     label: "Batch" },
+    { key: "itemName",        label: "Item" },
+    { key: "cookingCategory", label: "Category" },
+    { key: "unit",            label: "Unit" },
+    { key: "openingStock",    label: "Opening" },
+    { key: "received",        label: "Received" },
+    { key: "issued",          label: "Issued" },
+    { key: "closingStock",    label: "Closing" },
+    { key: "date",            label: "Received Date" },
+    { key: "expiryDate",      label: "Expiry" },
+    { key: "freshnessStatus", label: "Status" },
+    { key: "expiredItems",    label: "Expired Items" },
+    { key: "remarks",         label: "Remarks" },
   ],
   fields: [
-    { name: "itemName",     label: "Item",          type: "select", options: STOCK_ITEMS },
-    { name: "unit",         label: "Unit",          type: "select", options: STOCK_UNIT_OPTIONS },
-    { name: "openingStock", label: "Opening Stock", type: "number" },
-    { name: "received",     label: "Received",      type: "number" },
-    { name: "issued",       label: "Issued",        type: "number" },
-    { name: "closingStock", label: "Closing Stock", type: "number" },
-    { name: "remarks",      label: "Remarks",       type: "text" },
-    { name: "date",         label: "Date",          type: "date" },
+    { name: "batchNumber",     label: "Batch No",       type: "text" },
+    { name: "itemName",        label: "Item",          type: "select", options: STOCK_ITEMS },
+    { name: "unit",            label: "Unit",          type: "select", options: STOCK_UNIT_OPTIONS },
+    { name: "openingStock",    label: "Opening Stock", type: "number" },
+    { name: "received",        label: "Received",      type: "number" },
+    { name: "issued",          label: "Issued",        type: "number" },
+    { name: "closingStock",    label: "Closing Stock", type: "number", readOnly: true },
+    { name: "expiryDate",      label: "Expiry Date",   type: "date" },
+    { name: "freshnessStatus", label: "Status",        type: "select", options: STOCK_STATUS_OPTIONS, readOnly: true },
+    { name: "expiredItems",    label: "Expired Items", type: "text", readOnly: true },
+    { name: "remarks",         label: "Remarks",       type: "text" },
+    { name: "date",            label: "Received Date", type: "date" },
   ],
 };
 
@@ -381,11 +394,11 @@ const TAB_CONFIG = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const buildEmptyForm = (fields) =>
+const buildEmptyForm = (fields, extras = {}) =>
   fields.reduce((acc, f) => {
     acc[f.name] = f.type === "select" ? (f.options?.[0] ?? "") : "";
     return acc;
-  }, {});
+  }, { ...extras });
 
 const fmtDate = (v) => {
   if (!v) return "—";
@@ -395,8 +408,64 @@ const fmtDate = (v) => {
 
 const fmtVal = (v, key) => {
   if (v === null || v === undefined || v === "") return "—";
-  if (["date","startDate","endDate","purchaseDate","nextInspection","lastDonation"].includes(key)) return fmtDate(v);
+  if (["date","startDate","endDate","purchaseDate","nextInspection","lastDonation","expiryDate"].includes(key)) return fmtDate(v);
   return v;
+};
+
+const parseDateValue = (value) => {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const daysFromToday = (date) => {
+  const d = parseDateValue(date);
+  if (!d) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  const diff = d.getTime() - today.getTime();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+};
+
+const calculateClosingStock = (record) => {
+  const opening = Number(record.openingStock) || 0;
+  const received = Number(record.received) || 0;
+  const issued = Number(record.issued) || 0;
+  return Math.max(opening + received - issued, 0);
+};
+
+const getStockExpiryInfo = (record) => {
+  const closingStock = Number(record.closingStock ?? calculateClosingStock(record)) || 0;
+  if (closingStock <= 0) {
+    return { status: "Out of Stock", expiredItems: "No", daysLeft: null };
+  }
+
+  const daysLeft = daysFromToday(record.expiryDate);
+  if (daysLeft === null) {
+    return { status: closingStock <= 10 ? "Low Stock" : "Available", expiredItems: "No", daysLeft };
+  }
+
+  if (daysLeft <= 0) return { status: "Expired", expiredItems: "Yes", daysLeft };
+  if (daysLeft <= 7) return { status: "Near Expiry", expiredItems: "No", daysLeft };
+  if (closingStock <= 10) return { status: "Low Stock", expiredItems: "No", daysLeft };
+  return { status: "Fresh", expiredItems: "No", daysLeft };
+};
+
+const SummaryCard = ({ label, value, tone = "slate" }) => {
+  const tones = {
+    slate: "bg-slate-50 text-slate-700",
+    emerald: "bg-emerald-50 text-emerald-700",
+    amber: "bg-amber-50 text-amber-700",
+    rose: "bg-rose-50 text-rose-700",
+    indigo: "bg-indigo-50 text-indigo-700",
+  };
+  return (
+    <div className={`rounded-3xl border border-slate-200 ${tones[tone]} p-4`}> 
+      <p className="text-sm font-semibold text-slate-500">{label}</p>
+      <p className="mt-3 text-3xl font-bold tracking-tight">{value}</p>
+    </div>
+  );
 };
 
 const STATUS_COLORS = {
@@ -411,6 +480,14 @@ const STATUS_COLORS = {
   Resigned: "bg-gray-50 text-gray-600 ring-1 ring-gray-200",
   Unpaid:   "bg-orange-50 text-orange-700 ring-1 ring-orange-200",
   Pending:  "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200",
+  Fresh: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+  Available: "bg-sky-50 text-sky-700 ring-1 ring-sky-200",
+  "Near Expiry": "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+  Expired: "bg-red-50 text-red-700 ring-1 ring-red-200",
+  "Low Stock": "bg-orange-50 text-orange-700 ring-1 ring-orange-200",
+  "Out of Stock": "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+  Yes: "bg-red-50 text-red-700 ring-1 ring-red-200",
+  No: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
 };
 
 const StatusBadge = ({ value }) => {
@@ -422,7 +499,7 @@ const StatusBadge = ({ value }) => {
   );
 };
 
-const STATUS_KEYS = ["status", "condition"];
+const STATUS_KEYS = ["status", "condition", "freshnessStatus", "expiredItems"];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -435,10 +512,40 @@ export default function AdminRecordsView() {
   const [showFilters,   setShowFilters]   = useState(false);
   const [openDropdown,  setOpenDropdown]  = useState(null);
   const [filters,       setFilters]       = useState({ dateFrom: "", dateTo: "", searchTerm: "", name: "" });
+  const [nowTick,       setNowTick]       = useState(Date.now());
 
   const currentTab  = TAB_CONFIG[activeTab];
   const currentMeta = TABS.find((t) => t.key === activeTab);
-  const [formData, setFormData] = useState(buildEmptyForm(currentTab.fields));
+  const isCookingStockTab = activeTab === "stock-ration-dry" || activeTab === "stock-ration-fresh";
+  const cookingStockOptions = isCookingStockTab ? COOKING_STOCK_OPTIONS : STOCK_ITEMS;
+  const isStockTab = currentTab?.section?.startsWith("stock-");
+  const stockFormExtras = isStockTab
+    ? {
+        date: new Date().toISOString().slice(0, 10),
+        freshnessStatus: "Fresh",
+        expiredItems: "No",
+        ...(isCookingStockTab ? { cookingCategory: "Vegetables", beverageAddOn: "None" } : {}),
+      }
+    : {};
+  const [formData, setFormData] = useState(() => buildEmptyForm(currentTab.fields, stockFormExtras));
+
+  const stockSummary = useMemo(() => {
+    if (!isStockTab) return null;
+    const available = records.filter((record) => Number(record.closingStock ?? calculateClosingStock(record)) > 0).length;
+    const lowStock = records.filter((record) => {
+      const stock = Number(record.closingStock ?? calculateClosingStock(record));
+      return stock >= 0 && stock <= 10;
+    }).length;
+    const expired = records.filter((record) => getStockExpiryInfo(record).status === "Expired").length;
+    const nearExpiry = records.filter((record) => getStockExpiryInfo(record).status === "Near Expiry").length;
+    const fresh = records.filter((record) => ["Fresh", "Available"].includes(getStockExpiryInfo(record).status)).length;
+    const recentUpdates = [...records]
+      .filter((record) => record.date)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 5);
+
+    return { available, lowStock, expired, nearExpiry, fresh, recentUpdates };
+  }, [records, isStockTab, nowTick]);
 
   // Active group is derived — whichever group the active tab belongs to
   const activeGroup = TABS.find((t) => t.key === activeTab)?.group ?? "General";
@@ -446,6 +553,11 @@ export default function AdminRecordsView() {
   useEffect(() => {
     fetchRecords();
   }, [activeTab, filters.dateFrom, filters.dateTo, filters.searchTerm, filters.name]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowTick(Date.now()), 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const fetchRecords = async () => {
     setLoading(true);
@@ -469,21 +581,36 @@ export default function AdminRecordsView() {
 
   const handleTabChange = (key) => {
     setActiveTab(key);
-    setFormData(buildEmptyForm(TAB_CONFIG[key].fields));
+    const nextTab = TAB_CONFIG[key];
+    const nextIsCooking = key === "stock-ration-dry" || key === "stock-ration-fresh";
+    const nextIsStock = nextTab?.section?.startsWith("stock-");
+    setFormData(buildEmptyForm(nextTab.fields, nextIsStock ? {
+      date: new Date().toISOString().slice(0, 10),
+      freshnessStatus: "Fresh",
+      expiredItems: "No",
+      ...(nextIsCooking ? { cookingCategory: "Vegetables", beverageAddOn: "None" } : {}),
+    } : {}));
     setFilters({ dateFrom: "", dateTo: "", searchTerm: "", name: "" });
     setOpenDropdown(null);
   };
 
   const handleAddNew = () => {
     setEditingRecord(null);
-    setFormData(buildEmptyForm(currentTab.fields));
+    setFormData(buildEmptyForm(currentTab.fields, stockFormExtras));
     setShowModal(true);
   };
 
   const handleEdit = (record) => {
     setEditingRecord(record);
     const initial = currentTab.fields.reduce((acc, f) => {
-      const v = record[f.name];
+      const stockInfo = isStockTab ? getStockExpiryInfo(record) : null;
+      const v = f.name === "freshnessStatus"
+        ? stockInfo?.status
+        : f.name === "expiredItems"
+          ? stockInfo?.expiredItems
+          : f.name === "closingStock"
+            ? (record.closingStock ?? calculateClosingStock(record))
+            : record[f.name];
       acc[f.name] = f.type === "date"
         ? (v ? new Date(v).toISOString().slice(0, 10) : "")
         : f.type === "select"
@@ -491,26 +618,97 @@ export default function AdminRecordsView() {
           : (v ?? "");
       return acc;
     }, {});
+
+    if (isCookingStockTab) {
+      initial.cookingCategory = record.cookingCategory || "Vegetables";
+      initial.beverageAddOn = record.beverageAddOn || "None";
+      initial.otherItemName = record.otherItemName || "";
+    }
+
     setFormData(initial);
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this record?")) return;
-    try { await api.delete(`/admin/records/${id}`); fetchRecords(); } catch (e) { console.error(e); }
+  const buildStockPayload = (data) => {
+    const closingStock = calculateClosingStock(data);
+    const stockInfo = getStockExpiryInfo({ ...data, closingStock });
+    return {
+      ...data,
+      openingStock: Number(data.openingStock) || 0,
+      received: Number(data.received) || 0,
+      issued: Number(data.issued) || 0,
+      closingStock,
+      freshnessStatus: stockInfo.status,
+      expiredItems: stockInfo.expiredItems,
+      date: data.date || new Date().toISOString().slice(0, 10),
+    };
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleFormChange = (fieldName, value) => {
+    setFormData((prev) => {
+      const next = { ...prev, [fieldName]: value };
+      if (!isStockTab) return next;
+
+      const closingStock = calculateClosingStock(next);
+      const stockInfo = getStockExpiryInfo({ ...next, closingStock });
+      return {
+        ...next,
+        closingStock,
+        freshnessStatus: stockInfo.status,
+        expiredItems: stockInfo.expiredItems,
+      };
+    });
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     try {
-      const payload = { ...formData, section: currentTab.section };
-      if (editingRecord) await api.put(`/admin/records/${editingRecord._id}`, payload);
-      else               await api.post(currentTab.endpoint, payload);
+      const payload = { ...(isStockTab ? buildStockPayload(formData) : formData), section: currentTab.section };
+      if (editingRecord) {
+        await api.put(`/admin/records/${editingRecord._id}`, payload);
+      } else {
+        await api.post(currentTab.endpoint, payload);
+      }
       setShowModal(false);
       setEditingRecord(null);
-      setFormData(buildEmptyForm(currentTab.fields));
+      setFormData(buildEmptyForm(currentTab.fields, stockFormExtras));
       fetchRecords();
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleRemoveExpiredItems = async () => {
+    const expiredRecords = records.filter((record) => getStockExpiryInfo(record).status === "Expired");
+    if (!expiredRecords.length) return;
+    const ok = window.confirm(`Remove ${expiredRecords.length} expired stock item(s) from ${currentMeta?.label}?`);
+    if (!ok) return;
+
+    try {
+      await Promise.all(expiredRecords.map((record) => api.delete(`/admin/records/${record._id}`)));
+      fetchRecords();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!id) return;
+    try {
+      await api.delete(`/admin/records/${id}`);
+      fetchRecords();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const getCellValue = (record, key) => {
+    if (!isStockTab) return record[key];
+    const stockInfo = getStockExpiryInfo(record);
+    if (key === "freshnessStatus") return stockInfo.status;
+    if (key === "expiredItems") return stockInfo.expiredItems;
+    if (key === "closingStock") return record.closingStock ?? calculateClosingStock(record);
+    return record[key];
   };
 
   return (
@@ -570,7 +768,7 @@ export default function AdminRecordsView() {
 
               {/* Dropdown Panel */}
               {isOpen && (
-                <div className="absolute top-full left-0 min-w-[210px] bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 z-50">
+                <div className="absolute top-full left-0 min-w-52.5 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 z-50">
                   {groupTabs.map((tab) => (
                     <button
                       key={tab.key}
@@ -597,6 +795,17 @@ export default function AdminRecordsView() {
 
       {/* ── Main Content ── */}
       <div className="h-[calc(100vh-120px)] overflow-y-auto p-5 space-y-4">
+
+        {isStockTab && stockSummary && (
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-6">
+            <SummaryCard label="Available Stock" value={stockSummary.available} tone="emerald" />
+            <SummaryCard label="Low Stock" value={stockSummary.lowStock} tone="amber" />
+            <SummaryCard label="Near Expiry" value={stockSummary.nearExpiry} tone="rose" />
+            <SummaryCard label="Expired Items" value={stockSummary.expired} tone="slate" />
+            <SummaryCard label="Fresh Items" value={stockSummary.fresh} tone="indigo" />
+            <SummaryCard label="Recent Updates" value={stockSummary.recentUpdates.length} tone="slate" />
+          </div>
+        )}
 
         {/* Record Table Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -636,6 +845,15 @@ export default function AdminRecordsView() {
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 Filters
               </button>
+              {isStockTab && stockSummary?.expired > 0 && (
+                <button
+                  onClick={handleRemoveExpiredItems}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition"
+                >
+                  <PackageX className="w-3.5 h-3.5" />
+                  Remove Expired
+                </button>
+              )}
             </div>
           </div>
 
@@ -707,25 +925,39 @@ export default function AdminRecordsView() {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {records.map((record) => (
-                    <tr key={record._id} className="group hover:bg-indigo-50/40 transition-colors">
+                    <tr
+                      key={record._id}
+                      onClick={() => handleEdit(record)}
+                      className={`group cursor-pointer transition-colors ${
+                        isStockTab && getStockExpiryInfo(record).status === "Expired"
+                          ? "bg-red-50/50 hover:bg-red-50"
+                          : "hover:bg-indigo-50/40"
+                      }`}
+                    >
                       {currentTab.columns.map((col) => (
                         <td key={col.key} className="px-4 py-3 text-slate-700 whitespace-nowrap text-xs">
                           {STATUS_KEYS.includes(col.key)
-                            ? <StatusBadge value={record[col.key]} />
-                            : fmtVal(record[col.key], col.key)}
+                            ? <StatusBadge value={getCellValue(record, col.key)} />
+                            : fmtVal(getCellValue(record, col.key), col.key)}
                         </td>
                       ))}
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            onClick={() => handleEdit(record)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(record);
+                            }}
                             className="p-1.5 rounded-lg text-slate-500 hover:bg-indigo-100 hover:text-indigo-700 transition"
                             title="Edit"
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDelete(record._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(record._id);
+                            }}
                             className="p-1.5 rounded-lg text-slate-500 hover:bg-red-100 hover:text-red-600 transition"
                             title="Delete"
                           >
@@ -783,25 +1015,80 @@ export default function AdminRecordsView() {
                       <select
                         name={field.name}
                         value={formData[field.name] || ""}
-                        onChange={(e) => setFormData((p) => ({ ...p, [field.name]: e.target.value }))}
-                        className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
+                        onChange={(e) => handleFormChange(field.name, e.target.value)}
+                        disabled={field.readOnly}
+                        className={`w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition ${
+                          field.readOnly ? "bg-slate-100 cursor-not-allowed" : "bg-slate-50"
+                        }`}
                         required
                       >
-                        {field.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                        {(field.name === "itemName" && isCookingStockTab ? cookingStockOptions : field.options).map((o) => (
+                          <option key={o} value={o}>{o}</option>
+                        ))}
                       </select>
                     ) : (
                       <input
                         name={field.name}
                         type={field.type}
                         value={formData[field.name] || ""}
-                        onChange={(e) => setFormData((p) => ({ ...p, [field.name]: e.target.value }))}
+                        onChange={(e) => handleFormChange(field.name, e.target.value)}
+                        readOnly={field.readOnly}
                         placeholder={field.type === "date" ? "" : `Enter ${field.label.toLowerCase()}`}
-                        className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
+                        className={`w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition ${
+                          field.readOnly ? "bg-slate-100 cursor-not-allowed" : "bg-slate-50"
+                        }`}
                         required={["name","date","staffId","inmateId","studentId","assetId","donorId"].includes(field.name)}
                       />
                     )}
                   </div>
                 ))}
+
+                {isCookingStockTab && (
+                  <>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Cooking Category</label>
+                      <select
+                        name="cookingCategory"
+                        value={formData.cookingCategory || "Vegetables"}
+                        onChange={(e) => handleFormChange("cookingCategory", e.target.value)}
+                        className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
+                      >
+                        <option>Vegetables</option>
+                        <option>Cooking Items</option>
+                        <option>Tea / Coffee</option>
+                        <option>Spices</option>
+                        <option>Other</option>
+                      </select>
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Beverage Add-on</label>
+                      <select
+                        name="beverageAddOn"
+                        value={formData.beverageAddOn || "None"}
+                        onChange={(e) => handleFormChange("beverageAddOn", e.target.value)}
+                        className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
+                      >
+                        {COOKING_ADDON_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {formData.itemName === "Other" && (
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Specify other item</label>
+                        <input
+                          name="otherItemName"
+                          value={formData.otherItemName || ""}
+                          onChange={(e) => handleFormChange("otherItemName", e.target.value)}
+                          placeholder="Enter item name"
+                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* Modal Footer */}

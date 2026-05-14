@@ -9,8 +9,9 @@ import NormalEnquiry from "../components/dashboards/jonenquiry/NormalEnquiry";
 import ElderCare from "../components/dashboards/jonenquiry/ElderCare";
 import HomeCare from "../components/dashboards/jonenquiry/HomeCare";
 import AdminRecordsView from "../components/dashboards/AdminRecordsView";
+import StockMonitorView from "../components/dashboards/StockMonitorView";
 import { eldercare, enquiry, homecare, job, visitors_logs } from "../utils/icons";
-import { UserPlus, ClipboardList, HeartPulse, Shield } from "lucide-react";
+import { UserPlus, ClipboardList, HeartPulse, Shield, Package } from "lucide-react";
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
@@ -43,6 +44,13 @@ const ADMIN_TABS = [
     colorClass: "text-indigo-600 border-indigo-600",
     pill: "Admin",
     pillColor: "bg-indigo-50 text-indigo-700",
+  },
+  {
+    key: "stockmonitor", label: "Stock Monitor",
+    icon: <Package className="w-3.5 h-3.5" />,
+    colorClass: "text-emerald-600 border-emerald-600",
+    pill: "Stock",
+    pillColor: "bg-emerald-50 text-emerald-700",
   },
 ];
 
@@ -79,7 +87,7 @@ export default function VisitorPage() {
         </header>
 
         {/* ── Tab Bar ── */}
-        <nav className="bg-white border-b border-slate-200 px-6 flex items-end gap-0 shrink-0 overflow-x-auto">
+        <nav className="no-scrollbar bg-white border-b border-slate-200 px-6 flex items-end gap-0 shrink-0 overflow-x-auto overflow-y-hidden">
           {allTabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
@@ -108,13 +116,14 @@ export default function VisitorPage() {
         </nav>
 
         {/* ── Content Area ── */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="no-scrollbar flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
           {activeTab === "visitors"         && <Visitors />}
           {activeTab === "jobs"             && <JobEnquiry />}
           {activeTab === "clients"          && <NormalEnquiry />}
           {activeTab === "nursingview"      && <NursingRecordsView />}
           {activeTab === "watchmanview"     && <WatchmanRecordsView />}
           {activeTab === "adminrecordsview" && <AdminRecordsView />}
+          {activeTab === "stockmonitor"     && <StockMonitorView />}
           {activeTab === "eldercare"        && <ElderCare />}
           {activeTab === "homecare"         && <HomeCare />}
         </main>

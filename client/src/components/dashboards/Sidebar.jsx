@@ -1,197 +1,239 @@
+/**
+ * UNIFIED SIDEBAR — use this ONE file everywhere.
+ *
+ * Place at:  src/components/Sidebar.jsx
+ *
+ * Then in EVERY page that uses a sidebar, change the import to:
+ *   import Sidebar from "../components/Sidebar";   // adjust depth as needed
+ *
+ * Delete the old duplicate:
+ *   src/components/dashboards/visitors/Sidebar.jsx  ← DELETE THIS
+ */
+
 import { useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../../utils/auth";
 import { useState } from "react";
 import {
-  analytics, collapseClose, collapseexpand, dashboard,
-  enquiry, leaves, logoutBtn, settings, Transaction, trend, visitor
-} from "../../utils/icons";
+  LayoutDashboard,
+  Users,
+  Phone,
+  BarChart2,
+  ClipboardList,
+  Settings,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Headphones,
+  Briefcase,
+  ListTodo,
+  FileText,
+  TrendingUp,
+  MessageCircle,
+  CheckSquare,
+} from "lucide-react";
 
-// ─── Telecaller Icon (Phone) ──────────────────────────────────
-const TelecallerIcon = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-    strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12 19.79 19.79 0 0 1 1.9 3.37 2 2 0 0 1 3.89 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.99 5.99l1.07-1.07a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-  </svg>
-);
-const icons = {
-  // dashboard: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
-  // clients:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>,
-  // projects:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
-  // tasks:     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
-  // leaves:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-  // enquiry:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-  // taskManagement: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
-  // manager:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
-  // logout:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
-  // collapse:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>,
-  // expand:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>,
-    dashboard,
-    clients: Transaction,
-    projects: Transaction,
-    tasks: Transaction,
-    enquiry,
-    taskManagement: Transaction,
-    manager: trend,
-    logout: logoutBtn,
-    collapse: collapseClose,
-    expand: collapseexpand,
-    visitor,
-    analytics,
-    settings,
-    leaves,
-    trend,
-    telecaller: TelecallerIcon,
-};
+// ─── Nav items ────────────────────────────────────────────────────────────────
 
 const adminItems = [
-  { label: "Dashboard",   path: "/admin",        icon: icons.dashboard  },
-  { label: "Visitor",     path: "/visitorpage",  icon: icons.visitor    },
-  { label: "Calls",       path: "/EnquiryCalls", icon: icons.leaves     },
-  { label: "Analytics",   path: "/analytics",    icon: icons.analytics  },
-  { label: "HR & Staff",  path: "/staff",        icon: icons.clients    },
-  { label: "Task Management", path: "/tasks",    icon: icons.taskManagement},
-  { label: "Enquiry",     path: "/enquiry",      icon: icons.enquiry    },
-  { label: "Reports",     path: "/reports",      icon: icons.analytics  },
-  { label: "Trends",      path: "/trends",       icon: icons.trend      },
-  { label: "WhatsApp Leads", path: "/whatsapp-leads", icon: icons.telecaller },
-  { label: "Settings",    path: "/settings",     icon: icons.settings   },
+  { label: "Dashboard",       path: "/admin",          Icon: LayoutDashboard },
+  { label: "Visitor",         path: "/visitorpage",    Icon: Users           },
+  { label: "Calls",           path: "/enquiry-calls",  Icon: Phone           },
+  { label: "Analytics",       path: "/analytics",      Icon: BarChart2       },
+  { label: "HR & Staff",      path: "/staff",          Icon: Briefcase       },
+  { label: "Task Management", path: "/tasks",          Icon: ListTodo        },
+  { label: "Enquiry",         path: "/enquiry",        Icon: ClipboardList   },
+  { label: "Reports",         path: "/reports",        Icon: FileText        },
+  { label: "Trends",          path: "/trends",         Icon: TrendingUp      },
+  { label: "WhatsApp Leads",  path: "/whatsapp-leads", Icon: MessageCircle   },
+  { label: "Settings",        path: "/settings",       Icon: Settings        },
 ];
 
-function NavItem({ label, path, icon, isActive, onClick, collapsed }) {
+const managerItems = [
+  { label: "Manager Panel", path: "/manager",  Icon: LayoutDashboard },
+  { label: "Projects",      path: "/projects", Icon: Briefcase       },
+  { label: "Tasks",         path: "/tasks",    Icon: CheckSquare     },
+  { label: "Leaves",        path: "/leaves",   Icon: FileText        },
+];
+
+// ─── NavItem ──────────────────────────────────────────────────────────────────
+
+function NavItem({ label, path, Icon, badge, isActive, onClick, collapsed }) {
   return (
     <li
       onClick={onClick}
-      title={collapsed ? label : ""}
-      className={`flex items-center gap-2.5 py-2 rounded-lg cursor-pointer mb-0.5 border transition-all ${
-        collapsed ? "justify-center px-2" : "px-2.5"
-      } ${
+      title={collapsed ? label : undefined}
+      className={[
+        "relative flex items-center rounded-xl cursor-pointer select-none",
+        "transition-all duration-150 mb-[2px]",
+        collapsed ? "justify-center px-2 py-[9px]" : "px-3 py-[9px] gap-3",
         isActive
-          ? "bg-blue-900/30 border-blue-600/30"
-          : "border-transparent hover:bg-white/5"
-      }`}
+          ? "bg-green-50"
+          : "hover:bg-slate-100",
+      ].join(" ")}
     >
-      <div className={`w-8 h-8 min-w-[32px] rounded-lg flex items-center justify-center ${
-        isActive ? "bg-blue-700/40 text-blue-300" : "bg-white/5 text-white/40"
-      }`}>
-        {icon}
-      </div>
+      {/* Slide indicator */}
+      {isActive && (
+        <span className="absolute left-0 top-[20%] bottom-[20%] w-[3px] rounded-r-full bg-green-600" />
+      )}
+
+      {/* Icon bubble */}
+      <span
+        className={[
+          "flex h-[34px] w-[34px] min-w-[34px] items-center justify-center rounded-lg shrink-0",
+          isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400",
+        ].join(" ")}
+      >
+        <Icon className="h-[17px] w-[17px]" strokeWidth={1.8} />
+      </span>
+
+      {/* Label + badge */}
       {!collapsed && (
         <>
-          <span className={`text-sm flex-1 ${isActive ? "text-blue-200 font-medium" : "text-white/55"}`}>
+          <span
+            className={[
+              "flex-1 text-[13px] tracking-wide truncate",
+              isActive ? "font-semibold text-green-800" : "font-normal text-slate-600",
+            ].join(" ")}
+          >
             {label}
           </span>
-          {isActive && <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />}
+          {badge != null && badge > 0 && (
+            <span className="ml-auto rounded-full bg-red-50 px-[7px] py-[2px] text-[10px] font-semibold text-red-600 ring-1 ring-red-100">
+              {badge}
+            </span>
+          )}
         </>
       )}
     </li>
   );
 }
 
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
-  const role  = localStorage.getItem("role");
-  const name  = localStorage.getItem("name")  || "Admin";
-  const email = localStorage.getItem("email") || "";
+  const role     = localStorage.getItem("role");
+  const name     = localStorage.getItem("name")  || "Admin";
+  const email    = localStorage.getItem("email") || "";
   const initials = name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
+  // normalise path for comparison (ignore case, dashes, underscores)
+  const norm = (p) => p.toLowerCase().replace(/[-_]/g, "");
+  const isAt = (path) => norm(location.pathname) === norm(path);
+  const goTo = (path) => { if (!isAt(path)) navigate(path); };
+
+  const navItems =
+    role === "admin"      ? adminItems :
+    role === "manager"    ? managerItems :
+    role === "user"       ? [{ label: "User Home",  path: "/user",       Icon: LayoutDashboard }] :
+    role === "telecaller" ? [{ label: "Telecaller", path: "/telecaller", Icon: Phone           }] :
+    [];
+
   return (
-    <div
-      className="h-screen flex flex-col transition-all duration-300"
-      style={{ background: "#0f172a", width: collapsed ? "72px" : "256px", minWidth: collapsed ? "72px" : "256px" }}
+    <aside
+      className={[
+        "relative flex flex-col shrink-0 h-screen",
+        "bg-white border-r border-slate-200/80",
+        "transition-all duration-300 ease-in-out overflow-hidden",
+        collapsed ? "w-[68px]" : "w-[236px]",
+      ].join(" ")}
     >
-      {/* Header */}
-      <div className={`p-4 border-b border-white/8 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+      {/* ── Header ── */}
+      <div
+        className={[
+          "flex items-center border-b border-slate-100 px-3 py-[14px]",
+          collapsed ? "justify-center" : "justify-between",
+        ].join(" ")}
+      >
         {!collapsed && (
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 min-w-[36px] bg-blue-600 rounded-xl flex items-center justify-center">
-              {icons.dashboard}
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className="flex h-[34px] w-[34px] min-w-[34px] items-center justify-center rounded-xl bg-green-50 ring-1 ring-green-100">
+              <Headphones className="h-[17px] w-[17px] text-green-700" strokeWidth={1.8} />
             </div>
-            <div>
-              <h2 className="text-sm font-medium text-white">Dashboard</h2>
-              <p className="text-xs text-white/35">ERP Management</p>
+            <div className="overflow-hidden">
+              <p className="text-[13px] font-semibold text-slate-800 truncate leading-snug">Dashboard</p>
+              <p className="text-[10px] text-slate-400 truncate tracking-wide">ERP Management</p>
             </div>
           </div>
         )}
 
-        {/* Collapse toggle button */}
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white/80 transition-all border border-white/8"
+          onClick={() => setCollapsed(p => !p)}
+          title={collapsed ? "Expand" : "Collapse"}
+          className="flex h-[28px] w-[28px] min-w-[28px] items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
         >
-          {collapsed ? icons.expand : icons.collapse}
+          {collapsed
+            ? <PanelLeftOpen  className="h-[15px] w-[15px]" strokeWidth={1.8} />
+            : <PanelLeftClose className="h-[15px] w-[15px]" strokeWidth={1.8} />
+          }
         </button>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-">
+      {/* ── Nav ── */}
+      <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+
         {!collapsed && (
-          <p className="text-[10px] font-medium text-white/30 uppercase tracking-widest px-4 mb-2 mt-1">
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 select-none">
             Main menu
           </p>
         )}
-        <ul className="space-y-0.5">
 
-          {/* ADMIN */}
-          {role === "admin" && adminItems.map((item) => (
+        <ul>
+          {navItems.map(item => (
             <NavItem
               key={item.path}
               {...item}
               collapsed={collapsed}
-              isActive={location.pathname === item.path}
-              onClick={() => navigate(item.path)}
+              isActive={isAt(item.path)}
+              onClick={() => goTo(item.path)}
             />
           ))}
-
-          {/* MANAGER */}
-          {role === "manager" && (
-            <>
-              <NavItem label="Manager Panel" path="/manager"  icon={icons.manager}  collapsed={collapsed} isActive={location.pathname === "/manager"}  onClick={() => navigate("/manager")} />
-              <NavItem label="Projects"      path="/projects" icon={icons.projects} collapsed={collapsed} isActive={location.pathname === "/projects"} onClick={() => navigate("/projects")} />
-              <NavItem label="Tasks"         path="/tasks"    icon={icons.tasks}    collapsed={collapsed} isActive={location.pathname === "/tasks"}    onClick={() => navigate("/tasks")} />
-              <NavItem label="Leaves"        path="/leaves"   icon={icons.leaves}   collapsed={collapsed} isActive={location.pathname === "/leaves"}   onClick={() => navigate("/leaves")} />
-            </>
-          )}
-
-          {/* USER */}
-          {role === "user" && (
-            <NavItem label="User Home" path="/user" icon={icons.clients} collapsed={collapsed} isActive={location.pathname === "/user"} onClick={() => navigate("/user")} />
-          )}
         </ul>
 
         {/* Divider */}
-        <div className="my-3 border-t border-white/7" />
+        <div className="my-3 border-t border-slate-100" />
 
         {/* Logout */}
-        <li
-          onClick={logout}
-          title={collapsed ? "Logout" : ""}
-          className={`flex items-center gap-2.5 py-2 rounded-lg cursor-pointer border border-red-500/20 hover:bg-red-500/8 transition-all list-none ${
-            collapsed ? "justify-center px-2" : "px-2.5"
-          }`}
-        >
-          <div className="w-8 h-8 min-w-[32px] rounded-lg bg-red-500/10 flex items-center justify-center text-red-400">
-            {icons.logout}
-          </div>
-          {!collapsed && <span className="text-sm text-red-400">Logout</span>}
-        </li>
+        <ul>
+          <li
+            onClick={logout}
+            title={collapsed ? "Logout" : undefined}
+            className={[
+              "flex items-center rounded-xl cursor-pointer select-none",
+              "text-red-500 hover:bg-red-50 transition-colors duration-150",
+              collapsed ? "justify-center px-2 py-[9px]" : "gap-3 px-3 py-[9px]",
+            ].join(" ")}
+          >
+            <span className="flex h-[34px] w-[34px] min-w-[34px] items-center justify-center rounded-lg bg-red-50">
+              <LogOut className="h-[17px] w-[17px] text-red-500" strokeWidth={1.8} />
+            </span>
+            {!collapsed && (
+              <span className="text-[13px] font-normal text-red-500">Logout</span>
+            )}
+          </li>
+        </ul>
       </nav>
 
-      {/* Footer */}
-      <div className={`p-3 border-t border-white/8 flex items-center ${collapsed ? "justify-center" : "gap-2.5"}`}>
-        <div className="w-9 h-9 min-w-[36px] rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-medium">
+      {/* ── Footer ── */}
+      <div
+        className={[
+          "border-t border-slate-100 bg-slate-50/70 flex items-center",
+          collapsed ? "justify-center px-2 py-3" : "gap-2.5 px-3 py-3",
+        ].join(" ")}
+      >
+        <div className="flex h-[34px] w-[34px] min-w-[34px] items-center justify-center rounded-full bg-violet-100 text-[12px] font-semibold text-violet-700 ring-1 ring-violet-200 shrink-0">
           {initials}
         </div>
         {!collapsed && (
-          <div className="min-w-0">
-            <p className="text-sm text-white/80 font-medium truncate">{name}</p>
-            <p className="text-xs text-white/35 truncate">{email}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-semibold text-slate-700 leading-snug">{name}</p>
+            <p className="truncate text-[10px] text-slate-400">{email}</p>
           </div>
         )}
       </div>
-    </div>
+    </aside>
   );
 }

@@ -18,8 +18,6 @@ export default function EmployeeSearchBar({ view, setView }) {
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">HR & Staffs</h2>
-
-
       </div>
       
       <div className="flex gap-3 flex-wrap items-center mb-3">

@@ -13,25 +13,16 @@ import {
 import socket from "../services/socket";
 import API from "../services/api";
 
-<<<<<<< HEAD
-import DashboardTab      from "../components/telecallerscallpage/DashboardTab";
-import BreakHistoryTab   from "../components/telecallerscallpage/BreakHistoryTab";
-import CallLogsTab       from "../components/telecallerscallpage/CallLogsTab";
-import MissedCallsTab    from "../components/telecallerscallpage/MissedCallsTab";
-import { formatTimeShort, POLL_INTERVAL_MS } from "../components/telecallerscallpage/Utilities";
-import { ActiveCallBar, IncomingCallPopup } from "../components/telecallerscallpage/telecallertwillo/Incomingcallpopup";
-import { useTwilio } from "../components/telecallerscallpage/telecallertwillo/Usetwilio";
-import { selectTwilioStatus } from "../features/Twilioslice";
-=======
 import DashboardTab from "../components/telecallerscallpage/DashboardTab";
 import BreakHistoryTab from "../components/telecallerscallpage/BreakHistoryTab";
 import CallLogsTab from "../components/telecallerscallpage/CallLogsTab";
 import MissedCallsTab from "../components/telecallerscallpage/MissedCallsTab";
-import { formatTimeShort } from "../components/telecallerscallpage/Utilities";
-import { POLL_INTERVAL_MS } from "../components/telecallerscallpage/Utilities";
+import { formatTimeShort, POLL_INTERVAL_MS } from "../components/telecallerscallpage/Utilities";
+import { ActiveCallBar, IncomingCallPopup } from "../components/telecallerscallpage/telecallertwillo/Incomingcallpopup";
+import { useTwilio } from "../components/telecallerscallpage/telecallertwillo/Usetwilio";
+import { selectTwilioStatus } from "../features/Twilioslice";
 import LeadForm from "../components/enquiry/leadForm/LeadForm";
 
->>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
 
 const PhoneIcon = ({ className = "w-4 h-4" }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
@@ -49,7 +40,7 @@ const NAV_ITEMS = [
     id: "history", label: "Break History",
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /></svg>,
   },
-  { id: "calls",  label: "Call Logs",    icon: <PhoneIcon className="w-4 h-4" /> },
+  { id: "calls", label: "Call Logs", icon: <PhoneIcon className="w-4 h-4" /> },
   {
     id: "missed", label: "Missed Calls",
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.34 1.85.57 2.81.7a2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.42 19.42 0 0 1 1 4.73" /></svg>,
@@ -82,10 +73,9 @@ function TelecallerSidebar({ activeTab, setActiveTab, agent, onLogout, collapsed
             {!collapsed && (
               <div className="min-w-0">
                 <p className="text-white text-xs font-bold truncate">{agent.name}</p>
-                <p className={`text-[10px] font-semibold mt-0.5 ${
-                  agent.status === "available" ? "text-emerald-400"
-                  : agent.status === "busy"    ? "text-blue-400"
-                  : "text-amber-400"}`}>{agent.status}</p>
+                <p className={`text-[10px] font-semibold mt-0.5 ${agent.status === "available" ? "text-emerald-400"
+                    : agent.status === "busy" ? "text-blue-400"
+                      : "text-amber-400"}`}>{agent.status}</p>
               </div>
             )}
           </div>
@@ -159,23 +149,23 @@ function EnableCallsButton({ onEnable, twilioStatus, callsEnabled }) {
       onClick={onEnable}
       disabled={isLoading}
       style={{
-        position:     "fixed",
-        bottom:       "24px",
-        right:        "24px",
-        padding:      "14px 24px",
-        background:   isLoading ? "#818cf8" : "#6366f1",
-        color:        "#fff",
-        border:       "none",
+        position: "fixed",
+        bottom: "24px",
+        right: "24px",
+        padding: "14px 24px",
+        background: isLoading ? "#818cf8" : "#6366f1",
+        color: "#fff",
+        border: "none",
         borderRadius: "12px",
-        cursor:       isLoading ? "not-allowed" : "pointer",
-        fontWeight:   700,
-        fontSize:     "14px",
-        zIndex:       9999,
-        boxShadow:    "0 4px 16px rgba(99,102,241,0.4)",
-        display:      "flex",
-        alignItems:   "center",
-        gap:          "8px",
-        transition:   "all 0.2s",
+        cursor: isLoading ? "not-allowed" : "pointer",
+        fontWeight: 700,
+        fontSize: "14px",
+        zIndex: 9999,
+        boxShadow: "0 4px 16px rgba(99,102,241,0.4)",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        transition: "all 0.2s",
       }}
     >
       {isLoading ? (
@@ -191,30 +181,27 @@ function EnableCallsButton({ onEnable, twilioStatus, callsEnabled }) {
 export default function TelecallerPage() {
   const { acceptCall, rejectCall, hangUp, toggleMute, initDevice } = useTwilio();
   const twilioStatus = useSelector(selectTwilioStatus);
-  const dispatch     = useDispatch();
+  const dispatch = useDispatch();
   const { agent, activeCall, loading, breakLoading, callLoading, loginTime } =
     useSelector(s => s.myAgent);
   const notifications = useSelector((state) => state.chat.notifications);
 
-<<<<<<< HEAD
-  const [activeTab,    setActiveTab]    = useState("dashboard");
-  const [collapsed,    setCollapsed]    = useState(false);
-  const [now,          setNow]          = useState(new Date());
-  const [adminId,      setAdminId]      = useState(null);
-  const [adminName,    setAdminName]    = useState("Admin");
+  // const [activeTab,    setActiveTab]    = useState("dashboard");
+  // const [collapsed,    setCollapsed]    = useState(false);
+  // const [now, setNow] = useState(new Date());
+  const [adminId, setAdminId] = useState(null);
+  const [adminName, setAdminName] = useState("Admin");
   const [chatOpen, setChatOpen] = useState(false);
 
   const handleMarkNotifRead = (id) => dispatch(markNotificationRead(id));
   // ✅ FIX: Once clicked → remember forever (even across calls)
   const [callsEnabled, setCallsEnabled] = useState(false);
   const [incomingRequest, setIncomingRequest] = useState(null);
-=======
   const [activeTab, setActiveTab] = useState("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const [now, setNow] = useState(new Date());
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [leadFormPhone, setLeadFormPhone] = useState('');
->>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -338,33 +325,17 @@ export default function TelecallerPage() {
   };
 
   if (loading && !agent) return <LoadingState />;
-  if (!agent)             return <NoAgentState />;
+  if (!agent) return <NoAgentState />;
 
   const tabContent = {
     dashboard: (
-<<<<<<< HEAD
       <DashboardTab agent={agent} activeCall={activeCall} breakLoading={breakLoading}
         callLoading={callLoading} loginTime={loginTime}
         onToggleBreak={handleToggleBreak} onEndCall={handleEndCall} />
-=======
-      <DashboardTab
-        agent={agent}
-        activeCall={activeCall}
-        breakLoading={breakLoading}
-        callLoading={callLoading}
-        loginTime={loginTime}
-        onToggleBreak={handleToggleBreak}
-        onEndCall={handleEndCall}
-        onOpenLeadForm={(phone) => {
-          setLeadFormPhone(phone || activeCall?.number || '');
-          setShowLeadForm(true);
-        }}
-      />
->>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
     ),
     history: <BreakHistoryTab agent={agent} />,
-    calls:   <CallLogsTab agent={agent} />,
-    missed:  <MissedCallsTab agent={agent} />,
+    calls: <CallLogsTab agent={agent} />,
+    missed: <MissedCallsTab agent={agent} />,
   };
 
   return (
@@ -438,20 +409,19 @@ export default function TelecallerPage() {
 
           {/* Twilio status indicator */}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl">
-            <span className={`w-2 h-2 rounded-full ${
-              twilioStatus === "ready"    ? "bg-emerald-400" :
-              twilioStatus === "on-call"  ? "bg-blue-400 animate-pulse" :
-              twilioStatus === "incoming" ? "bg-yellow-400 animate-pulse" :
-              twilioStatus === "error"    ? "bg-red-400" :
-              "bg-slate-300"
-            }`} />
+            <span className={`w-2 h-2 rounded-full ${twilioStatus === "ready" ? "bg-emerald-400" :
+                twilioStatus === "on-call" ? "bg-blue-400 animate-pulse" :
+                  twilioStatus === "incoming" ? "bg-yellow-400 animate-pulse" :
+                    twilioStatus === "error" ? "bg-red-400" :
+                      "bg-slate-300"
+              }`} />
             <span className="text-[10px] font-bold text-slate-500 uppercase">
-              {twilioStatus === "ready"         ? "Ready" :
-               twilioStatus === "on-call"       ? "On Call" :
-               twilioStatus === "incoming"      ? "Incoming" :
-               twilioStatus === "initializing"  ? "Connecting" :
-               twilioStatus === "error"         ? "Error" :
-               "Calls Off"}
+              {twilioStatus === "ready" ? "Ready" :
+                twilioStatus === "on-call" ? "On Call" :
+                  twilioStatus === "incoming" ? "Incoming" :
+                    twilioStatus === "initializing" ? "Connecting" :
+                      twilioStatus === "error" ? "Error" :
+                        "Calls Off"}
             </span>
           </div>
 

@@ -8,12 +8,9 @@ import callReducer from "../features/callSlice";
 import agentReducer from "../features/agentSlice";
 import myAgentReducer from "../features/myAgentSlice";
 import callsReducer from "../features/callSlice";
-<<<<<<< HEAD
 import twilioReducer from "../features/Twilioslice";
 import chatReducer from "../features/chatSlice";
-=======
 import taskReportReducer from "../features/taskReportSlice";
->>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
 
 export const store = configureStore({
   reducer: {
@@ -25,14 +22,11 @@ export const store = configureStore({
     calls: callReducer,
     agents: agentReducer,
     myAgent: myAgentReducer,
-<<<<<<< HEAD
     calls: callsReducer,
     twilio: twilioReducer,
     chat: chatReducer,
-=======
      calls: callsReducer,
     taskReport: taskReportReducer,
->>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
   }
 });
 

@@ -22,12 +22,9 @@
     "react-redux": "^8.1.1",
     "react-router-dom": "^7.13.1",
     "react-toastify": "^11.0.5",
-<<<<<<< HEAD
     "recharts": "^3.8.1",
-=======
     "recharts": "^3.8.0",
     "socket.io": "^4.8.3",
->>>>>>> 37407dc37049a79f7632adc8b84729e75f200b4e
     "socket.io-client": "^4.8.3",
     "tailwindcss": "^4.2.2",
     "xlsx": "^0.18.5"
